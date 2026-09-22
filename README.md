@@ -74,8 +74,12 @@ All secrets live in `.env` at the project root. Never hardcode keys in source fi
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | Supabase Postgres connection string (shared, ask team) |
-| `HIKER_API_KEY` | HikerAPI key for Instagram data |
+| `HIKERAPI_ACCESS_KEY` | HikerAPI key for Instagram data |
 | `HIKER_BASE_URL` | `https://api.instagrapi.com` |
+| `HIKER_FOLLOWING_ENDPOINT` | Current cursor-based following route: `/gql/user/following/chunk` |
+| `HIKER_FOLLOWING_FORCE` | `true` skips Hiker's extra privacy check because the page already includes `is_private` |
+| `HIKER_PAGE_SIZE` | Requested accounts per following page on the g2 fallback; defaults to `50` |
+| `HIKER_MAX_PAGES` | Safety limit for one refresh; defaults to `25` |
 | `DEEPSEEK_API_KEY` | DeepSeek API key for club validation |
 | `SEED_ACCOUNT` | Instagram handle to start discovery from (`hunterusg`) |
 | `APP_ENV` | Runtime environment (`development`, `production`) |
@@ -96,6 +100,10 @@ This repo intentionally starts with a Hunter-first pipeline while keeping the ap
 - API routes are registered through a Flask app factory.
 - UI components are separated by concern and can be expanded without modifying the data layer.
 - The seed account is configurable and can be replaced as the platform expands to other colleges.
+- Discovery is a scheduled refresh job, not a user-facing request. It resolves the seed once, walks the paginated following graph, removes private accounts, deduplicates records, and stores a refresh summary with the eventual database write.
+- In production, a cron or managed scheduler should run `python backend/discover_clubs.py --college hunter` at a low frequency, then replace the file writer with a database repository. The job should save the clean accounts, `generated_at`, page count, raw account count, public count, skipped-private count, and any API error as one refresh record.
+- The current live route returned 25 accounts per page, so Hunter's 284-account graph took 12 cursor pages in the verified refresh. The result was 259 raw accounts, 25 private accounts skipped, and 234 public accounts written to the clean export.
+- Following pages are `UserShort` records. The raw discovery export intentionally stores only `username`, `user_id`, `full_name`, `profile_pic_url`, and `is_private`; profile enrichment is disabled unless explicitly enabled later.
 
 ## Future roadmap
 
