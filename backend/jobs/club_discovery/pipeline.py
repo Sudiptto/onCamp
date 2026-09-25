@@ -3,10 +3,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.college_config import get_college_config
-from app.services.club_discovery import extract_following, write_discovery_outputs
 from app.services.hiker_client import HikerAPIError, HikerClient
+from jobs.club_discovery.accounts import extract_public_accounts
 from jobs.club_discovery.activity import add_activity_status, split_activity_status
 from jobs.club_discovery.classification import classify_clubs
+from jobs.club_discovery.outputs import write_outputs
 
 
 def run(
@@ -25,7 +26,7 @@ def run(
         raise HikerAPIError(f"Could not resolve seed account: {target_account}")
 
     raw_accounts, refresh_stats = client.get_following(user_pk)
-    public_accounts = extract_following(raw_accounts)
+    public_accounts = extract_public_accounts(raw_accounts)
     clubs, other_accounts = classify_clubs(public_accounts, config.get("keywords"))
     clubs = add_activity_status(clubs)
     activity_groups = split_activity_status(clubs)
@@ -55,7 +56,7 @@ def run(
     }
 
     if output_dir:
-        result["files"] = write_discovery_outputs(result, output_dir=output_dir)
+        result["files"] = write_outputs(result, output_dir=output_dir)
     return result
 
 

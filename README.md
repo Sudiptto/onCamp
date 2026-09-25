@@ -96,7 +96,7 @@ feat/<name>   # feature branches off dev
 
 This repo intentionally starts with a Hunter-first pipeline while keeping the application model flexible enough to expand beyond Hunter.
 
-- Discovery logic is isolated under the backend service layer.
+- Discovery logic is isolated under the scheduler-ready `backend/jobs/club_discovery/` package.
 - Scheduler-ready discovery jobs live under `backend/jobs/`; trigger wiring is intentionally deferred.
 - API routes are registered through a Flask app factory.
 - UI components are separated by concern and can be expanded without modifying the data layer.

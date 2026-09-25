@@ -4,9 +4,9 @@ import os
 import sys
 
 from app.college_config import get_college_config
-from app.services.club_discovery import write_discovery_outputs
 from app.services.hiker_client import HikerAPIError
 from jobs.club_discovery import run
+from jobs.club_discovery.outputs import write_outputs
 from jobs.club_discovery.pipeline import default_output_dir
 
 
@@ -36,7 +36,7 @@ def main() -> int:
             "error": str(exc),
         }
 
-    file_map = result.get("files") or write_discovery_outputs(result, output_dir=args.output_dir)
+    file_map = result.get("files") or write_outputs(result, output_dir=args.output_dir)
     print(json.dumps({
         "college": config["college_name"],
         "seed_account": seed,
