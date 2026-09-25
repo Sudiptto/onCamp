@@ -57,12 +57,17 @@ def save_clubs_json(clubs: list[dict[str, Any]], output_path: str) -> None:
 
 def save_clubs_csv(clubs: list[dict[str, Any]], output_path: str) -> None:
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    fieldnames = [
+    base_fields = [
         "username",
         "user_id",
         "full_name",
         "profile_pic_url",
         "is_private",
+    ]
+    optional_fields = ["account_type", "club_match_terms", "activity_status"]
+    fieldnames = base_fields + [
+        field for field in optional_fields
+        if any(field in account for account in clubs)
     ]
     with open(output_path, "w", newline="", encoding="utf-8") as file_handle:
         writer = csv.DictWriter(file_handle, fieldnames=fieldnames)
@@ -74,6 +79,9 @@ def save_clubs_csv(clubs: list[dict[str, Any]], output_path: str) -> None:
                 "full_name": club.get("full_name", ""),
                 "profile_pic_url": club.get("profile_pic_url", ""),
                 "is_private": club.get("is_private", False),
+                "account_type": club.get("account_type", ""),
+                "club_match_terms": ",".join(club.get("club_match_terms", [])),
+                "activity_status": club.get("activity_status", ""),
             })
 
 
@@ -113,13 +121,12 @@ def write_discovery_outputs(data: dict[str, Any], output_dir: str = "data") -> d
     clubs_json = os.path.join(output_root, "clubs.json")
     clubs_csv = os.path.join(output_root, "clubs.csv")
 
-    pool = data.get("following") or data.get("clubs") or []
-    save_clubs_json(pool, following_json)
-    save_clubs_csv(pool, following_csv)
-
-    # Keep the club names as compatibility aliases during the early raw-capture phase.
-    save_clubs_json(pool, clubs_json)
-    save_clubs_csv(pool, clubs_csv)
+    following = data.get("following") or []
+    clubs = data.get("clubs") or []
+    save_clubs_json(following, following_json)
+    save_clubs_csv(following, following_csv)
+    save_clubs_json(clubs, clubs_json)
+    save_clubs_csv(clubs, clubs_csv)
 
     return {
         "following_json": following_json,

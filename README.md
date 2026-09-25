@@ -97,13 +97,14 @@ feat/<name>   # feature branches off dev
 This repo intentionally starts with a Hunter-first pipeline while keeping the application model flexible enough to expand beyond Hunter.
 
 - Discovery logic is isolated under the backend service layer.
+- Scheduler-ready discovery jobs live under `backend/jobs/`; trigger wiring is intentionally deferred.
 - API routes are registered through a Flask app factory.
 - UI components are separated by concern and can be expanded without modifying the data layer.
 - The seed account is configurable and can be replaced as the platform expands to other colleges.
-- Discovery is a scheduled refresh job, not a user-facing request. It resolves the seed once, walks the paginated following graph, removes private accounts, deduplicates records, and stores a refresh summary with the eventual database write.
-- In production, a cron or managed scheduler should run `python backend/discover_clubs.py --college hunter` at a low frequency, then replace the file writer with a database repository. The job should save the clean accounts, `generated_at`, page count, raw account count, public count, skipped-private count, and any API error as one refresh record.
+- Discovery is a scheduled refresh job, not a user-facing request. `backend/jobs/club_discovery.run()` resolves the seed once, walks the paginated following graph, removes private accounts, classifies likely clubs, parses activity signals, and returns a refresh summary.
+- In production, an Azure trigger or managed scheduler should call that job at a low frequency, then replace the file writer with a database repository. Trigger wiring is intentionally not implemented yet.
 - The current live route returned 25 accounts per page, so Hunter's 284-account graph took 12 cursor pages in the verified refresh. The result was 259 raw accounts, 25 private accounts skipped, and 234 public accounts written to the clean export.
-- Following pages are `UserShort` records. The raw discovery export intentionally stores only `username`, `user_id`, `full_name`, `profile_pic_url`, and `is_private`; profile enrichment is disabled unless explicitly enabled later.
+- Following pages are `UserShort` records. The raw discovery export intentionally stores only `username`, `user_id`, `full_name`, `profile_pic_url`, and `is_private`.
 
 ## Future roadmap
 
