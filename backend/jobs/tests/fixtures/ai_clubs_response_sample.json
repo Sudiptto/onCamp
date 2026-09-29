@@ -1,0 +1,46 @@
+{
+  "clubs": [
+    {
+      "user_id": "12339415936",
+      "username": "bcc.hunter",
+      "is_club": true,
+      "confidence": 0.97,
+      "reason": "Cultural student club at Hunter College"
+    },
+    {
+      "user_id": "54969380047",
+      "username": "hunterknittedknockers",
+      "is_club": true,
+      "confidence": 0.9,
+      "reason": "Named campus group despite no 'club' keyword"
+    },
+    {
+      "user_id": "33645938218",
+      "username": "thebaithakhunter",
+      "is_club": true,
+      "confidence": 0.82,
+      "reason": "Named Hunter student community group"
+    },
+    {
+      "user_id": "80358114796",
+      "username": "hunter.hsa",
+      "is_club": true,
+      "confidence": 0.7,
+      "reason": "Likely a Hunter student association despite empty name"
+    },
+    {
+      "user_id": "61735036290",
+      "username": "prelawsocietyhc",
+      "is_club": true,
+      "confidence": 0.97,
+      "reason": "Pre-Law Society is a clear student organization"
+    },
+    {
+      "user_id": "70000000001",
+      "username": "hunter_altfields_example",
+      "is_club": true,
+      "confidence": 0.88,
+      "reason": "Name explicitly identifies a campus club"
+    }
+  ]
+}

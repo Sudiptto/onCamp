@@ -9,11 +9,9 @@
 1. Resolve the configured USG seed account.
 2. Walk the paginated following graph.
 3. Keep public accounts and normalize the raw fields.
-4. Classify likely club accounts using username/full-name signals.
-5. Parse activity status when the payload contains an explicit activity signal.
-6. Return a structured result and optionally write local outputs.
+4. Return the raw public following result and refresh metadata.
 
-The current following payload does not contain post activity data, so club activity is `unknown` until a later ingestion stage supplies it. This avoids guessing that a club is inactive.
+AI classification runs separately under `jobs/ai/` after discovery. The current discovery job does not classify clubs or determine activity.
 
 Example manual invocation:
 

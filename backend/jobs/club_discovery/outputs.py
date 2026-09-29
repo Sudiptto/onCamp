@@ -20,18 +20,12 @@ def _save_csv(accounts: list[dict[str, Any]], output_path: str) -> None:
         "profile_pic_url",
         "is_private",
     ]
-    optional_fields = ["account_type", "club_match_terms", "activity_status"]
-    fieldnames = base_fields + [
-        field for field in optional_fields
-        if any(field in account for account in accounts)
-    ]
+    fieldnames = base_fields
     with open(output_path, "w", newline="", encoding="utf-8") as file_handle:
         writer = csv.DictWriter(file_handle, fieldnames=fieldnames)
         writer.writeheader()
         for account in accounts:
             row = {field: account.get(field, "") for field in fieldnames}
-            if "club_match_terms" in row:
-                row["club_match_terms"] = ",".join(account.get("club_match_terms", []))
             writer.writerow(row)
 
 

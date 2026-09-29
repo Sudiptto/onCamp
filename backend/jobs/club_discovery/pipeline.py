@@ -5,8 +5,6 @@ from typing import Any
 from app.college_config import get_college_config
 from app.services.hiker_client import HikerAPIError, HikerClient
 from jobs.club_discovery.accounts import extract_public_accounts
-from jobs.club_discovery.activity import add_activity_status, split_activity_status
-from jobs.club_discovery.classification import classify_clubs
 from jobs.club_discovery.outputs import write_outputs
 
 
@@ -27,9 +25,6 @@ def run(
 
     raw_accounts, refresh_stats = client.get_following(user_pk)
     public_accounts = extract_public_accounts(raw_accounts)
-    clubs, other_accounts = classify_clubs(public_accounts, config.get("keywords"))
-    clubs = add_activity_status(clubs)
-    activity_groups = split_activity_status(clubs)
 
     result = {
         "college_key": config["college_key"],
@@ -38,20 +33,12 @@ def run(
         "seed_user_id": str(user_pk),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "following": public_accounts,
-        "clubs": clubs,
-        "other_accounts": other_accounts,
-        "active_clubs": activity_groups["active"],
-        "inactive_clubs": activity_groups["inactive"],
-        "unknown_activity_clubs": activity_groups["unknown"],
+        "clubs": [],
         "refresh_stats": {
             **refresh_stats,
             "public_accounts": len(public_accounts),
             "private_accounts_skipped": len(raw_accounts) - len(public_accounts),
-            "club_candidates": len(clubs),
-            "other_accounts": len(other_accounts),
-            "active_clubs": len(activity_groups["active"]),
-            "inactive_clubs": len(activity_groups["inactive"]),
-            "unknown_activity_clubs": len(activity_groups["unknown"]),
+            "ai_classification": "pending",
         },
     }
 

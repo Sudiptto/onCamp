@@ -5,17 +5,6 @@ COLLEGE_CONFIGS = {
         "college_key": "hunter",
         "college_name": "Hunter College",
         "seed_account": "hunterusg",
-        "keywords": [
-            "club",
-            "union",
-            "org",
-            "society",
-            "council",
-            "association",
-            "chapter",
-            "team",
-            "student government",
-        ],
     },
 }
 

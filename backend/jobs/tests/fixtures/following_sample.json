@@ -1,0 +1,51 @@
+[
+  {
+    "username": "bcc.hunter",
+    "user_id": "12339415936",
+    "full_name": "Burmese Culture Club at Hunter College",
+    "profile_pic_url": "https://instagram.example.com/bcc_hunter.jpg",
+    "is_private": false
+  },
+  {
+    "username": "hunterknittedknockers",
+    "user_id": "54969380047",
+    "full_name": "Knitted Knockers at Hunter College  \ud83e\uddf6 \ud83d\udc95",
+    "profile_pic_url": "https://instagram.example.com/hunterknittedknockers.jpg",
+    "is_private": false
+  },
+  {
+    "username": "mysocialdesigner",
+    "user_id": "8243344144",
+    "full_name": "Roger Coles",
+    "profile_pic_url": "https://instagram.example.com/mysocialdesigner.jpg",
+    "is_private": false
+  },
+  {
+    "username": "thebaithakhunter",
+    "user_id": "33645938218",
+    "full_name": "The Baithak",
+    "profile_pic_url": "https://instagram.example.com/thebaithakhunter.jpg",
+    "is_private": false
+  },
+  {
+    "username": "hunter.hsa",
+    "user_id": "80358114796",
+    "full_name": "",
+    "profile_pic_url": "https://instagram.example.com/hunter_hsa.jpg",
+    "is_private": false
+  },
+  {
+    "username": "prelawsocietyhc",
+    "user_id": "61735036290",
+    "full_name": "Pre-Law Society Hunter College",
+    "profile_pic_url": "https://instagram.example.com/prelawsocietyhc.jpg",
+    "is_private": false
+  },
+  {
+    "username": "hunter_altfields_example",
+    "user_id": "70000000001",
+    "full_name": "Alt Fields Example Club",
+    "profile_pic_url": "https://instagram.example.com/alt_fields_example.jpg",
+    "is_private": false
+  }
+]

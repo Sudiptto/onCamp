@@ -81,6 +81,8 @@ All secrets live in `.env` at the project root. Never hardcode keys in source fi
 | `HIKER_PAGE_SIZE` | Requested accounts per following page on the g2 fallback; defaults to `50` |
 | `HIKER_MAX_PAGES` | Safety limit for one refresh; defaults to `25` |
 | `DEEPSEEK_API_KEY` | DeepSeek API key for club validation |
+| `DEEPSEEK_BASE_URL` | DeepSeek OpenAI-compatible API base URL |
+| `DEEPSEEK_MODEL` | Cheap model used by the separate AI filter, defaults to `deepseek-chat` |
 | `SEED_ACCOUNT` | Instagram handle to start discovery from (`hunterusg`) |
 | `APP_ENV` | Runtime environment (`development`, `production`) |
 
@@ -101,10 +103,11 @@ This repo intentionally starts with a Hunter-first pipeline while keeping the ap
 - API routes are registered through a Flask app factory.
 - UI components are separated by concern and can be expanded without modifying the data layer.
 - The seed account is configurable and can be replaced as the platform expands to other colleges.
-- Discovery is a scheduled refresh job, not a user-facing request. `backend/jobs/club_discovery.run()` resolves the seed once, walks the paginated following graph, removes private accounts, classifies likely clubs, parses activity signals, and returns a refresh summary.
+- Discovery is a scheduled refresh job, not a user-facing request. `backend/jobs/club_discovery.run()` resolves the seed once, walks the paginated following graph, removes private accounts, and returns a raw refresh summary. AI filtering runs separately through `backend/run_ai_club_filter.py`.
 - In production, an Azure trigger or managed scheduler should call that job at a low frequency, then replace the file writer with a database repository. Trigger wiring is intentionally not implemented yet.
 - The current live route returned 25 accounts per page, so Hunter's 284-account graph took 12 cursor pages in the verified refresh. The result was 259 raw accounts, 25 private accounts skipped, and 234 public accounts written to the clean export.
 - Following pages are `UserShort` records. The raw discovery export intentionally stores only `username`, `user_id`, `full_name`, `profile_pic_url`, and `is_private`.
+- The AI filter preserves `following.json`, sends only `username`, `user_id`, and `full_name` to DeepSeek, then matches approved IDs back to the original records to produce `clubs.json`.
 
 ## Future roadmap
 

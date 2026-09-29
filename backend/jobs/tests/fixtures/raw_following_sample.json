@@ -1,0 +1,71 @@
+[
+  {
+    "pk": "12339415936",
+    "id": "12339415936",
+    "username": "bcc.hunter",
+    "full_name": "Burmese Culture Club at Hunter College",
+    "profile_pic_url": "https://instagram.example.com/bcc_hunter.jpg",
+    "is_private": false,
+    "is_verified": false
+  },
+  {
+    "pk": "54969380047",
+    "id": "54969380047",
+    "username": "hunterknittedknockers",
+    "full_name": "Knitted Knockers at Hunter College  \ud83e\uddf6 \ud83d\udc95",
+    "profile_pic_url": "https://instagram.example.com/hunterknittedknockers.jpg",
+    "is_private": false,
+    "is_verified": false
+  },
+  {
+    "pk": "8243344144",
+    "id": "8243344144",
+    "username": "mysocialdesigner",
+    "full_name": "Roger Coles",
+    "profile_pic_url": "https://instagram.example.com/mysocialdesigner.jpg",
+    "is_private": false,
+    "is_verified": false
+  },
+  {
+    "pk": "33645938218",
+    "id": "33645938218",
+    "username": "thebaithakhunter",
+    "full_name": "The Baithak",
+    "profile_pic_url": "https://instagram.example.com/thebaithakhunter.jpg",
+    "is_private": false,
+    "is_verified": false
+  },
+  {
+    "pk": "80358114796",
+    "id": "80358114796",
+    "username": "hunter.hsa",
+    "full_name": "",
+    "profile_pic_url": "https://instagram.example.com/hunter_hsa.jpg",
+    "is_private": false,
+    "is_verified": false
+  },
+  {
+    "pk": "61735036290",
+    "id": "61735036290",
+    "username": "prelawsocietyhc",
+    "full_name": "Pre-Law Society Hunter College",
+    "profile_pic_url": "https://instagram.example.com/prelawsocietyhc.jpg",
+    "is_private": false,
+    "is_verified": false
+  },
+  {
+    "pk": "99999900001",
+    "id": "99999900001",
+    "username": "private_person_example",
+    "full_name": "Private Person Example",
+    "profile_pic_url": "https://instagram.example.com/private_person_example.jpg",
+    "is_private": true,
+    "is_verified": false
+  },
+  {
+    "id": "70000000001",
+    "username": "hunter_altfields_example",
+    "name": "Alt Fields Example Club",
+    "profile_picture": "https://instagram.example.com/alt_fields_example.jpg"
+  }
+]

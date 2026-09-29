@@ -1,0 +1,18 @@
+{
+  "clubs": [
+    {
+      "user_id": "12339415936",
+      "username": "bcc.hunter",
+      "is_club": true,
+      "confidence": 0.97,
+      "reason": "Cultural student club at Hunter College"
+    },
+    {
+      "user_id": "00000000000",
+      "username": "does_not_exist_in_following_sample",
+      "is_club": true,
+      "confidence": 0.5,
+      "reason": "Fabricated ID not present in the original following file"
+    }
+  ]
+}

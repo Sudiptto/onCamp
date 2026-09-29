@@ -7,6 +7,7 @@ __pycache__/
 venv/
 .env
 backend/data/
+backend/sample/
 
 # Node
 node_modules/
