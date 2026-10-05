@@ -21,3 +21,18 @@ cd backend
 ```
 
 The future scheduler should call `run()` and replace its file output with a database repository. The trigger itself is intentionally out of scope for this stage.
+
+## Activity check
+
+`jobs/activity_check.run()` splits `clubs.json` into active and inactive clubs. For each club it makes one `/gql/user/medias` call (`flat=true`), takes the newest post (by timestamp, since pinned posts can lead the grid), and buckets it:
+
+- last post within 90 days: `active`, recheck daily
+- older than 90 days or no posts: `inactive`, recheck monthly
+
+Output is `club_activity.json` with `active` and `inactive` lists (post id, post code, last post date, days since, next check). Each record is shaped as one future DB row; the DB write would replace the file write in `pipeline.run()`. The full pipeline (discovery, AI filter, activity check) is meant to run once per semester.
+
+```powershell
+cd backend
+.\venv\Scripts\python.exe run_activity_check.py --limit 5   # cheap sample (default 5)
+.\venv\Scripts\python.exe run_activity_check.py --all       # every club, one API call each
+```
