@@ -54,6 +54,11 @@ class HikerClient:
         data = self.get("/v2/user/by/username", {"username": username})
         return data.get("user") or data.get("data") or data
 
+    def get_user_medias(self, user_id: str | int) -> Any:
+        """Return the raw first page of a user's posts (newest first); parsing lives in the job layer."""
+        endpoint = os.getenv("HIKER_MEDIAS_ENDPOINT", "/gql/user/medias")
+        return self.get(endpoint, {"user_id": user_id, "flat": "true"})
+
     def get_following(
         self,
         user_id: str | int,
