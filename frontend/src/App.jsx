@@ -194,6 +194,9 @@ export default function App() {
             >
               Archive
             </button>
+            <button type="button" aria-pressed={foodOnly} onClick={toggleFood}>
+              Free food
+            </button>
           </div>
 
           {mode === 'upcoming' && (
@@ -210,15 +213,6 @@ export default function App() {
               ))}
             </div>
           )}
-
-          <button
-            type="button"
-            className="food-toggle"
-            aria-pressed={foodOnly}
-            onClick={toggleFood}
-          >
-            Free food
-          </button>
 
           <label className="club-filter">
             Club
@@ -285,7 +279,6 @@ export default function App() {
                       >
                         <span className="day-top">
                           <span className="day-number">{date.getDate()}</span>
-                          {hasFood && <span className="eats-mark">Eats</span>}
                         </span>
                         {dayEvents.length > 0 && (
                           <span className={hasFood ? 'day-dot is-food' : 'day-dot'} aria-hidden="true" />

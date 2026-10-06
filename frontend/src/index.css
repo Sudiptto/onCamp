@@ -126,13 +126,6 @@ h1 {
   color: #fffaf2;
 }
 
-.food-toggle[aria-pressed='true'] {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: #3a2a08;
-  font-weight: 700;
-}
-
 .club-filter {
   display: grid;
   gap: 4px;
@@ -267,6 +260,10 @@ h1 {
   background: #f6e2a4;
 }
 
+.day.is-outside.has-food {
+  background: #fbf7f1;
+}
+
 .day-top {
   display: flex;
   align-items: center;
@@ -274,7 +271,6 @@ h1 {
   gap: 4px;
 }
 
-.eats-mark,
 .food-badge {
   display: inline-block;
   border-radius: 999px;
@@ -285,10 +281,6 @@ h1 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 1px 6px;
-}
-
-.food-badge {
-  margin-left: 8px;
 }
 
 .day-number {
@@ -311,7 +303,7 @@ h1 {
   height: 7px;
   margin: 6px auto 0;
   border-radius: 999px;
-  background: var(--gold-deep);
+  background: var(--purple);
 }
 
 .day-chips {
@@ -321,10 +313,7 @@ h1 {
 }
 
 .day-dot.is-food {
-  width: 9px;
-  height: 9px;
   background: var(--gold);
-  box-shadow: 0 0 0 2px #6d4e12;
 }
 
 .day-chip,
@@ -369,8 +358,8 @@ h1 {
 }
 
 .event-card.is-selected {
-  border-color: var(--gold);
-  box-shadow: inset 3px 0 0 var(--gold);
+  border-color: var(--purple);
+  box-shadow: inset 3px 0 0 var(--purple);
 }
 
 .event-select {
@@ -460,10 +449,6 @@ h1 {
 
   .day-top {
     justify-content: center;
-  }
-
-  .eats-mark {
-    display: none;
   }
 
   .day-chips {
