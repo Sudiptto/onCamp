@@ -126,6 +126,13 @@ h1 {
   color: #fffaf2;
 }
 
+.food-toggle[aria-pressed='true'] {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #3a2a08;
+  font-weight: 700;
+}
+
 .club-filter {
   display: grid;
   gap: 4px;
@@ -252,6 +259,38 @@ h1 {
   background: #f8f0d8;
 }
 
+.day.has-food {
+  background: #fff4d4;
+}
+
+.day.has-food.is-selected {
+  background: #f6e2a4;
+}
+
+.day-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.eats-mark,
+.food-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #3a2a08;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+}
+
+.food-badge {
+  margin-left: 8px;
+}
+
 .day-number {
   display: inline-grid;
   place-items: center;
@@ -281,6 +320,13 @@ h1 {
   margin-top: 4px;
 }
 
+.day-dot.is-food {
+  width: 9px;
+  height: 9px;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px #6d4e12;
+}
+
 .day-chip,
 .day-more {
   overflow: hidden;
@@ -292,6 +338,11 @@ h1 {
   font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 4px;
+}
+
+.day-chip.is-food {
+  background: var(--gold);
+  color: #3a2a08;
 }
 
 .day-more {
@@ -346,6 +397,13 @@ h1 {
   font-size: 0.92rem;
 }
 
+.event-kicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .event-select strong {
   font-size: 1.05rem;
 }
@@ -398,6 +456,14 @@ h1 {
     min-height: 52px;
     padding: 4px 2px;
     text-align: center;
+  }
+
+  .day-top {
+    justify-content: center;
+  }
+
+  .eats-mark {
+    display: none;
   }
 
   .day-chips {

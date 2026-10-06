@@ -50,7 +50,10 @@ function EventCard({ event, selected, onSelect }) {
       <button type="button" className="event-select" onClick={() => onSelect(event.date)}>
         <ClubMark name={event.club_name} src={event.club_pfp} />
         <span>
-          <span className="event-kicker">{formatLongDate(event.date)}</span>
+          <span className="event-kicker">
+            {formatLongDate(event.date)}
+            {event.free_food && <span className="food-badge">Free food</span>}
+          </span>
           <strong>{event.event_name}</strong>
           <span className="event-when">{formatTimeRange(event.start_time, event.end_time)}</span>
           <span className="event-where">{event.location}</span>
@@ -87,6 +90,7 @@ export default function App() {
     return { year: now.getFullYear(), month: now.getMonth() }
   })
   const [selected, setSelected] = useState(today)
+  const [foodOnly, setFoodOnly] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -127,7 +131,9 @@ export default function App() {
     }
   }, [mode, range, clubId, today])
 
-  const events = payload?.events ?? []
+  const allEvents = payload?.events ?? []
+  const events = foodOnly ? allEvents.filter((event) => event.free_food) : allEvents
+  const foodCount = allEvents.filter((event) => event.free_food).length
   const byDate = useMemo(() => {
     const grouped = new Map()
     for (const event of events) {
@@ -144,6 +150,14 @@ export default function App() {
     const [year, month] = iso.split('-').map(Number)
     setSelected(iso)
     setCursor({ year, month: month - 1 })
+  }
+
+  function toggleFood() {
+    const next = !foodOnly
+    setFoodOnly(next)
+    if (!next) return
+    const foodEvents = (payload?.events ?? []).filter((event) => event.free_food)
+    if (foodEvents.length) focusDate(closestDate(foodEvents, today))
   }
 
   function shiftMonth(offset) {
@@ -197,6 +211,15 @@ export default function App() {
             </div>
           )}
 
+          <button
+            type="button"
+            className="food-toggle"
+            aria-pressed={foodOnly}
+            onClick={toggleFood}
+          >
+            Free food
+          </button>
+
           <label className="club-filter">
             Club
             <select value={clubId} onChange={(event) => setClubId(event.target.value)}>
@@ -213,7 +236,7 @@ export default function App() {
         <p className="status-line">
           {loading && 'Loading events…'}
           {!loading && error && error}
-          {!loading && !error && `${payload?.count ?? 0} ${payload?.count === 1 ? 'event' : 'events'} · ${viewLabel}`}
+          {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}`}
         </p>
 
         <div className="layout">
@@ -243,6 +266,7 @@ export default function App() {
                   {week.map((date) => {
                     const iso = toISODate(date)
                     const dayEvents = byDate.get(iso) ?? []
+                    const hasFood = dayEvents.some((event) => event.free_food)
                     const outside = date.getMonth() !== cursor.month
                     return (
                       <button
@@ -253,16 +277,22 @@ export default function App() {
                           outside ? 'is-outside' : '',
                           iso === today ? 'is-today' : '',
                           iso === selected ? 'is-selected' : '',
+                          hasFood ? 'has-food' : '',
                         ].filter(Boolean).join(' ')}
                         aria-pressed={iso === selected}
-                        aria-label={`${formatLongDate(iso)}, ${dayEvents.length} events`}
+                        aria-label={`${formatLongDate(iso)}, ${dayEvents.length} events${hasFood ? ', free food' : ''}`}
                         onClick={() => focusDate(iso)}
                       >
-                        <span className="day-number">{date.getDate()}</span>
-                        {dayEvents.length > 0 && <span className="day-dot" aria-hidden="true" />}
+                        <span className="day-top">
+                          <span className="day-number">{date.getDate()}</span>
+                          {hasFood && <span className="eats-mark">Eats</span>}
+                        </span>
+                        {dayEvents.length > 0 && (
+                          <span className={hasFood ? 'day-dot is-food' : 'day-dot'} aria-hidden="true" />
+                        )}
                         <span className="day-chips">
                           {dayEvents.slice(0, 2).map((event) => (
-                            <span key={event.event_id} className="day-chip">
+                            <span key={event.event_id} className={event.free_food ? 'day-chip is-food' : 'day-chip'}>
                               {event.event_name}
                             </span>
                           ))}
@@ -281,7 +311,7 @@ export default function App() {
           <section className="schedule" aria-label="Events in this view">
             <h2>{mode === 'archive' ? 'Archive' : 'Schedule'}</h2>
             {!loading && !error && events.length === 0 && (
-              <p className="empty">No events in this view.</p>
+              <p className="empty">{foodOnly ? 'No free food in this view.' : 'No events in this view.'}</p>
             )}
             <div className="schedule-list">
               {events.map((event) => (
