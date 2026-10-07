@@ -27,3 +27,5 @@ class Event(db.Model):
             "is_free_food": self.is_free_food,
             "source_url": self.source_url,
         }
+
+
