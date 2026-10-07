@@ -1,7 +1,11 @@
 """
-Active clubs are re-checked roughly daily, inactive ones roughly monthly -- that interval is just logic here, not a stored column, 
-since it's fully determined by status. next_check_at is what a future scheduler would query ("WHERE next_check_at <= now()") instead 
-of re-checking every club every run.
+
+Takes the results from activity_check and saves them into the database.
+
+Matches each club by its Instagram handle. Active clubs get re-checked roughly daily. Inactive ones get re-checked roughly monthly. 
+That's just decided here based on status, not stored anywhere. next_check_at is what a scheduler would use later to only check clubs 
+that are actually due.
+
 """
 
 import argparse
@@ -23,17 +27,37 @@ DEFAULT_TEST_LIMIT = 5
 
 ACTIVE_CHECK_INTERVAL_DAYS = 1
 INACTIVE_CHECK_INTERVAL_DAYS = 30
+ERROR_BACKOFF_DAYS = 30  # don't hammer a broken account every single run
 
 
 def _parse_dt(value: str | None):
     return datetime.fromisoformat(value) if value else None
 
 
-def sync_club_activity(records: list[dict], now: datetime | None = None) -> dict:
+def _interval_for(status: str) -> int:
+    if status == "active":
+        return ACTIVE_CHECK_INTERVAL_DAYS
+    if status == "error":
+        return ERROR_BACKOFF_DAYS
+    return INACTIVE_CHECK_INTERVAL_DAYS
+
+
+def sync_club_activity(
+    records: list[dict], now: datetime | None = None, errors: list[dict] | None = None
+) -> dict:
     now = now or datetime.now(timezone.utc)
     matched, unmatched = 0, 0
 
-    for record in records:
+    # Normalize errors into the same shape as a normal record, tagged
+    # status="error", so they go through one shared code path below
+    # instead of a separate near-duplicate loop.
+    error_records = [
+        {"username": error.get("username", ""), "status": "error",
+         "last_post_id": None, "last_post_at": None}
+        for error in (errors or [])
+    ]
+
+    for record in records + error_records:
         club = Club.query.filter_by(instagram_handle=record["username"]).first()
         if club is None:
             unmatched += 1
@@ -45,9 +69,7 @@ def sync_club_activity(records: list[dict], now: datetime | None = None) -> dict
             db.session.add(activity)
 
         status = record["status"]
-        interval = (
-            ACTIVE_CHECK_INTERVAL_DAYS if status == "active" else INACTIVE_CHECK_INTERVAL_DAYS
-        )
+        interval = _interval_for(status)
 
         activity.college_id = club.college_id
         activity.status = status
@@ -56,7 +78,10 @@ def sync_club_activity(records: list[dict], now: datetime | None = None) -> dict
         activity.next_check_at = now + timedelta(days=interval)
         activity.checked_at = now
 
-        club.is_active = status == "active"
+        # Errored clubs aren't necessarily inactive -- we just couldn't
+        # check them -- so don't flip is_active off based on an error.
+        if status != "error":
+            club.is_active = status == "active"
         matched += 1
 
     db.session.commit()
@@ -86,7 +111,7 @@ def main() -> int:
 
     app = create_app()
     with app.app_context():
-        summary = sync_club_activity(records)
+        summary = sync_club_activity(records, errors=pipeline_result.get("errors"))
 
     print(json.dumps({
         "checked_count": pipeline_result["checked_count"],
