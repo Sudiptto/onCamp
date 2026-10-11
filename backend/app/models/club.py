@@ -8,6 +8,8 @@ class Club(db.Model):
     college_id = db.Column(db.Integer, db.ForeignKey("colleges.id"), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     instagram_handle = db.Column(db.String(255), unique=True, nullable=False)
+    # HikerAPI looks accounts up by this numeric id. Handles can change, the id doesn't.
+    instagram_user_id = db.Column(db.String(64), unique=True, nullable=True)
     profile_pic_url = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())

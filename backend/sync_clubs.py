@@ -1,11 +1,21 @@
+"""Loads the clubs from clubs.json into the Club table.
+
+clubs.json comes from run_full_pipeline.py. Run seed_colleges.py first, every
+club needs a college. Safe to run again, clubs are matched by Instagram user id
+(or handle if there's no id) so rows get updated, not duplicated.
+
+Usage:
+    cd backend
+    python sync_clubs.py --input data/clubs.json --college hunter
+"""
+
 import argparse
 import json
 from pathlib import Path
 
 from app import create_app
-from app.college_config import get_college_config
 from app.extensions import db
-from app.models import Club
+from app.models import Club, College
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT = ROOT / "data" / "clubs.json"
@@ -16,37 +26,53 @@ def load_clubs_file(input_path: Path) -> list[dict]:
         raise FileNotFoundError(
             f"No clubs file at {input_path}. Run run_full_pipeline.py first."
         )
-    with open(input_path, "r", encoding="utf-8") as file_handle:
+    with open(input_path, encoding="utf-8") as file_handle:
         return json.load(file_handle)
 
 
-def sync_clubs(records: list[dict], seed_account: str) -> dict:
-    created, updated, skipped = 0, 0, 0             # three counters start at zero
+def _find_club(user_id: str | None, handle: str) -> Club | None:
+    # The user id is stable, a handle is not, so try the id first.
+    if user_id:
+        club = Club.query.filter_by(instagram_user_id=user_id).first()
+        if club is not None:
+            return club
+    return Club.query.filter_by(instagram_handle=handle).first()
 
-    for record in records:                          # loop over every club dict in the JSON
+
+def sync_clubs(records: list[dict], college_key: str) -> dict:
+    college = College.query.filter_by(key=college_key).first()
+    if college is None:
+        raise ValueError(
+            f"No College row for key={college_key!r}. Run seed_colleges.py first."
+        )
+
+    created, updated, skipped = 0, 0, 0
+
+    for record in records:
         handle = (record.get("username") or "").strip()
-        if not handle:                              # THIS is the check
-            skipped += 1                            
-            continue                             
-            # if this record doesn't have the one piece of data we absolutely need, don't crash, just count it and move on.
+        if not handle:
+            # Can't store a club without a handle, so count it and move on.
+            skipped += 1
+            continue
 
+        user_id = str(record.get("user_id") or "").strip() or None
         display_name = (record.get("full_name") or handle).strip()
+        profile_pic_url = (record.get("profile_pic_url") or "").strip() or None
 
-        club = Club.query.filter_by(instagram_handle=handle).first()
+        club = _find_club(user_id, handle)
         if club is None:
-            club = Club(
-                name=display_name,
-                instagram_handle=handle,
-                seed_account=seed_account,
-                is_active=True,
-            )
+            club = Club(college_id=college.id, is_active=True)
             db.session.add(club)
             created += 1
         else:
-            club.name = display_name
-            club.seed_account = seed_account
-            club.is_active = True
+            # is_active is left alone here, the activity check owns that field.
             updated += 1
+
+        club.college_id = college.id
+        club.name = display_name
+        club.instagram_handle = handle
+        club.instagram_user_id = user_id
+        club.profile_pic_url = profile_pic_url
 
     db.session.commit()
     return {"created": created, "updated": updated, "skipped": skipped}
@@ -54,29 +80,21 @@ def sync_clubs(records: list[dict], seed_account: str) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Sync AI-approved clubs.json into the Club table."
+        description="Sync clubs.json into the Club table."
     )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument(
         "--college",
         default="hunter",
-        help="College key used to resolve the seed_account stored on each Club row.",
+        help="College key, must already exist (see seed_colleges.py).",
     )
-    parser.add_argument("--seed-account", default=None)
     args = parser.parse_args()
-
-    # figure out which seed_account value to store on each club:
-    # use --seed-account if given, otherwise the college's default
-    config = get_college_config(args.college)
-    seed_account = args.seed_account or config["seed_account"]
-    config = get_college_config(args.college)
-    seed_account = args.seed_account or config["seed_account"]
 
     records = load_clubs_file(args.input)
 
     app = create_app()
     with app.app_context():
-        summary = sync_clubs(records, seed_account=seed_account)
+        summary = sync_clubs(records, college_key=args.college)
 
     print(json.dumps({"input": str(args.input), **summary}, indent=2))
     return 0
