@@ -110,14 +110,21 @@ def classify_with_deepseek(
         max_retries=0,  # retries happen in _classify_with_retries so they get logged
     )
     prompt = load_prompt(prompt_path)
+    model = get_model()
+    options = {}
+    if model not in LEGACY_MODELS:
+        # Newer models think before answering by default, which is slower and ignores
+        # temperature. deepseek-chat was always the non-thinking mode, so ask for that.
+        options["extra_body"] = {"thinking": {"type": "disabled"}}
     response = client.chat.completions.create(
-        model=get_model(),
+        model=model,
         temperature=0,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": json.dumps(candidates, ensure_ascii=False)},
         ],
+        **options,
     )
     content = response.choices[0].message.content or ""
     try:
@@ -306,7 +313,7 @@ def run_filter(
     if model in LEGACY_MODELS:
         print(
             f"Warning: DeepSeek announced {model} would be discontinued on 2026-07-24. "
-            "If requests fail, set DEEPSEEK_MODEL to a current model "
+            "If requests fail, set DEEPSEEK_MODEL to a current model such as deepseek-flash "
             "(see api-docs.deepseek.com/updates).",
             file=sys.stderr,
         )

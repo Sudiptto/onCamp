@@ -21,6 +21,7 @@ The original `following.json` is never modified. The candidate list sent to Deep
 - If retries run out on a timeout or rate limit, the run stops instead of failing on every batch that is left.
 - After every finished batch, the result for each account is saved to `club_classifications.json` (next to `clubs.json` by default). It holds only `user_id`, a yes/no result, the model name, and a short prompt fingerprint. No names or bios.
 - If any account could not be classified, `clubs.json` is not touched and the command exits with an error. Run it again and only the missing accounts are sent to DeepSeek.
+- Models other than `deepseek-chat` and `deepseek-reasoner` (for example `deepseek-flash`) are run in non-thinking mode. DeepSeek's newer models think before answering by default, which is slower and ignores `temperature`.
 - Changing `DEEPSEEK_MODEL` or editing the prompt makes the old results outdated, so those accounts are classified again. Use `--no-cache` to redo everything.
 
 ### What happens when something goes wrong

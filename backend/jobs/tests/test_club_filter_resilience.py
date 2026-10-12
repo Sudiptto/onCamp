@@ -148,6 +148,43 @@ def test_classify_with_deepseek_wraps_bad_json(monkeypatch):
     assert seen["max_retries"] == 0
 
 
+def fake_openai(monkeypatch, sent):
+    """Patches the openai client so the request it would send is saved in `sent`."""
+    reply = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content='{"clubs": []}'))])
+
+    def create(**kwargs):
+        sent.update(kwargs)
+        return reply
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setattr(club_filter, "OpenAI", FakeOpenAI)
+
+
+def test_classify_with_deepseek_disables_thinking_on_new_models(monkeypatch):
+    sent = {}
+    fake_openai(monkeypatch, sent)
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-flash")
+
+    club_filter.classify_with_deepseek([candidate(1)], PROMPT_PATH)
+
+    assert sent["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert sent["temperature"] == 0
+
+
+def test_classify_with_deepseek_leaves_legacy_models_alone(monkeypatch):
+    sent = {}
+    fake_openai(monkeypatch, sent)
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
+
+    club_filter.classify_with_deepseek([candidate(1)], PROMPT_PATH)
+
+    assert "extra_body" not in sent
+
+
 # classify_all
 
 def test_classify_all_skips_malformed_batch(monkeypatch):
