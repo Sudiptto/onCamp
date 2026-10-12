@@ -63,7 +63,7 @@ class IncompleteClassification(RuntimeError):
 
 
 def get_model() -> str:
-    return os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+    return os.getenv("DEEPSEEK_MODEL", "deepseek-flash")
 
 
 def get_prompt_version(prompt: str) -> str:
