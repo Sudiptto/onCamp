@@ -1,21 +1,20 @@
 :root {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: #efeef6;
-  background: #0d1220;
+  color: #241427;
+  background: #f3ecdf;
+  font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 
-  --bg: #0d1220;
-  --panel: #151d2e;
-  --panel-alt: #1e2940;
-  --primary: #68d1b7;
-  --primary-strong: #3bb8a2;
-  --text-soft: #b4bfd0;
-  --border: rgba(255, 255, 255, 0.08);
+  --purple: #4a2268;
+  --purple-deep: #311546;
+  --gold: #e2b340;
+  --gold-deep: #9a7430;
+  --cream: #f3ecdf;
+  --paper: #fffdf8;
+  --ink: #241427;
+  --muted: #6d5a72;
+  --line: #e4d8c6;
 }
 
 * {
@@ -25,141 +24,391 @@
 html, body, #root {
   margin: 0;
   min-height: 100%;
-  min-width: 100%;
-  background: radial-gradient(circle at top, #17233d 0%, var(--bg) 42%);
 }
 
 body {
   min-height: 100vh;
-  color: #efeef6;
+  background:
+    radial-gradient(circle at top left, rgba(226, 179, 64, 0.18), transparent 28%),
+    var(--cream);
+  color: var(--ink);
 }
 
-button {
+button, select {
   font: inherit;
 }
 
-.app-shell {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 20px 48px;
+a {
+  color: var(--purple);
 }
 
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  gap: 16px;
+.page {
+  min-height: 100vh;
+}
+
+.masthead {
+  background: linear-gradient(180deg, var(--purple-deep), var(--purple));
+  color: #fffaf2;
+  border-bottom: 4px solid var(--gold);
+}
+
+.masthead-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 20px 24px;
 }
 
 .eyebrow {
-  margin: 0 0 8px;
-  letter-spacing: 0.12em;
+  margin: 0 0 6px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-size: 0.72rem;
-  color: var(--text-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gold);
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(3rem, 7vw, 4.6rem);
+  font-weight: 560;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
 }
 
-h2, h3, p {
-  margin-top: 0;
+.lede {
+  margin: 10px 0 0;
+  font-size: 1.15rem;
 }
 
-.primary-button {
-  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-  color: #0d1220;
-  border: none;
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px 20px 48px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-top: -36px;
+  padding: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(49, 21, 70, 0.08);
+}
+
+.mode-switch,
+.range-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mode-switch button,
+.range-switch button,
+.today-button,
+.calendar-nav button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
   border-radius: 999px;
-  padding: 0.85rem 1.4rem;
-  font-weight: 700;
+  padding: 0.45rem 0.8rem;
   cursor: pointer;
 }
 
-.content {
+.mode-switch button[aria-pressed='true'],
+.range-switch button[aria-pressed='true'] {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fffaf2;
+}
+
+.club-filter {
   display: grid;
-  gap: 20px;
-}
-
-.summary-card,
-.event-card {
-  background: rgba(21, 29, 46, 0.9);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow: 0 18px 45px rgba(15, 18, 25, 0.35);
-}
-
-.summary-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-}
-
-.label {
-  margin-bottom: 10px;
-  color: var(--text-soft);
+  gap: 4px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.72rem;
 }
 
-.status-pill {
-  background: rgba(104, 209, 183, 0.14);
-  border: 1px solid rgba(104, 209, 183, 0.35);
-  color: var(--primary);
-  border-radius: 999px;
-  padding: 0.5rem 0.9rem;
+.club-filter select {
+  min-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0.5rem 0.7rem;
+  text-transform: none;
+  letter-spacing: 0;
   font-weight: 600;
 }
 
-.event-list {
+.status-line {
+  min-height: 1.4rem;
+  margin: 14px 2px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.8fr);
   gap: 18px;
+  align-items: start;
+}
+
+.calendar,
+.schedule {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.calendar-nav h2,
+.schedule h2 {
+  margin: 0;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 560;
+}
+
+.calendar-nav button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.today-button {
+  width: auto;
+  height: auto;
+  margin-left: auto;
+  font-size: 0.95rem;
+}
+
+.weekday-row,
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.weekday-row {
+  margin-bottom: 6px;
+  color: var(--gold-deep);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.weekday-row span {
+  padding: 0 4px;
+}
+
+.week {
+  border-top: 1px solid var(--line);
+}
+
+.day {
+  min-height: 92px;
+  padding: 6px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.week .day:last-child {
+  border-right: 0;
+}
+
+.day.is-outside {
+  color: #b3a59a;
+  background: #fbf7f1;
+}
+
+.day.is-today .day-number {
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.day.is-selected {
+  background: #f8f0d8;
+}
+
+.day-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.day.is-selected .day-number {
+  background: var(--purple);
+  color: #fffaf2;
+}
+
+.day-dot {
+  display: none;
+  width: 7px;
+  height: 7px;
+  margin: 6px auto 0;
+  border-radius: 999px;
+  background: var(--gold-deep);
+}
+
+.day-chips {
+  display: grid;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.day-chip,
+.day-more {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-radius: 6px;
+  background: #efe2f4;
+  color: var(--purple-deep);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 4px;
+}
+
+.day-more {
+  background: transparent;
+  color: var(--muted);
+}
+
+.schedule h2 {
+  margin-bottom: 12px;
+}
+
+.schedule-list {
+  display: grid;
+  gap: 10px;
+  max-height: 720px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .event-card {
-  padding: 18px 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
 }
 
-.event-meta {
-  margin-bottom: 16px;
+.event-card.is-selected {
+  border-color: var(--gold);
+  box-shadow: inset 3px 0 0 var(--gold);
 }
 
-.event-tag {
-  display: inline-flex;
-  align-items: center;
+.event-select {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.event-select span {
+  display: grid;
+  min-width: 0;
+}
+
+.event-kicker,
+.event-when,
+.event-where {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.event-select strong {
+  font-size: 1.05rem;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #dfe9ff;
-  font-size: 0.72rem;
-  padding: 0.35rem 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  object-fit: cover;
+  background: var(--purple);
 }
 
-.event-card h3 {
-  margin-bottom: 8px;
-  font-size: 1.3rem;
+.avatar.fallback {
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  font-weight: 700;
 }
 
-.event-card p {
-  margin-bottom: 6px;
-  color: var(--text-soft);
+.event-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 12px 12px 64px;
+  font-weight: 700;
+  font-size: 0.92rem;
 }
 
-@media (max-width: 640px) {
-  .topbar,
-  .summary-card {
-    flex-direction: column;
-    align-items: flex-start;
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (max-width: 860px) {
+  .club-filter {
+    margin-left: 0;
+    width: 100%;
   }
 
-  .primary-button {
+  .club-filter select {
     width: 100%;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .day {
+    min-height: 52px;
+    padding: 4px 2px;
+    text-align: center;
+  }
+
+  .day-chips {
+    display: none;
+  }
+
+  .day-dot {
+    display: block;
+  }
+
+  .schedule-list {
+    max-height: none;
   }
 }
