@@ -22,9 +22,10 @@ from dotenv import load_dotenv
 
 from app import create_app
 from app.extensions import db
-from app.models import Club, ClubActivity
+from app.models import ArchivedClub, Club, ClubActivity, Event
 from jobs.activity_check import run as run_activity_check
-from jobs.activity_check.buckets import INACTIVE_CHECK_INTERVAL_DAYS
+
+ERROR_BACKOFF_DAYS = 30
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CLUBS = ROOT / "data" / "clubs.json"
@@ -64,13 +65,28 @@ def _get_activity(club: Club) -> ClubActivity:
     return activity
 
 
+def _archive_club(club: Club, activity: ClubActivity, archived_at: datetime) -> None:
+    db.session.add(ArchivedClub(
+        college_id=club.college_id,
+        name=club.name,
+        instagram_handle=club.instagram_handle,
+        instagram_user_id=club.instagram_user_id,
+        profile_pic_url=club.profile_pic_url,
+        last_post_at=activity.last_post_at,
+        archived_at=archived_at,
+    ))
+    Event.query.filter_by(club_id=club.id).delete()
+    db.session.delete(activity)
+    db.session.delete(club)
+
+
 def sync_club_activity(
     records: list[dict],
     now: datetime | None = None,
     errors: list[dict] | None = None,
 ) -> dict:
     checked_at = to_db_time(now or datetime.now(timezone.utc))
-    matched, unmatched, backed_off, will_retry = 0, 0, 0, 0
+    matched, unmatched, backed_off, will_retry, archived = 0, 0, 0, 0, 0
 
     for record in records:
         club = _find_club(record)
@@ -86,6 +102,9 @@ def sync_club_activity(
         activity.checked_at = checked_at
         club.is_active = record["status"] == "active"
         matched += 1
+        if record["status"] == "archived":
+            _archive_club(club, activity, checked_at)
+            archived += 1
 
     for error in errors or []:
         if error.get("status_code") not in PERMANENT_ERROR_STATUS_CODES:
@@ -101,7 +120,7 @@ def sync_club_activity(
         # the club is active, so is_active and the last post stay as they were.
         activity = _get_activity(club)
         activity.status = "error"
-        activity.next_check_at = checked_at + timedelta(days=INACTIVE_CHECK_INTERVAL_DAYS)
+        activity.next_check_at = checked_at + timedelta(days=ERROR_BACKOFF_DAYS)
         activity.checked_at = checked_at
         backed_off += 1
 
@@ -110,6 +129,7 @@ def sync_club_activity(
         "matched": matched,
         "unmatched": unmatched,
         "backed_off": backed_off,
+        "archived": archived,
         "will_retry": will_retry,
     }
 
@@ -133,7 +153,7 @@ def main() -> int:
     pipeline_result = run_activity_check(
         args.clubs, args.output, limit=None if args.all else args.limit
     )
-    records = pipeline_result["active"] + pipeline_result["inactive"]
+    records = pipeline_result["active"] + pipeline_result["inactive"] + pipeline_result["archived"]
 
     app = create_app()
     with app.app_context():

@@ -1,4 +1,4 @@
-import json
+﻿import json
 from datetime import datetime, timezone
 
 from app.services.hiker_client import HikerAPIError
@@ -51,8 +51,8 @@ def test_run_splits_active_inactive_and_errors(tmp_path):
     assert {c["username"] for c in result["inactive"]} == {"stale_club", "empty_club"}
     assert [e["username"] for e in result["errors"]] == ["broken_club"]
     assert result["active"][0]["last_post_id"] == "3982796730936418814"
-    assert result["active"][0]["check_interval_days"] == 1
-    assert result["inactive"][0]["check_interval_days"] == 30
+    assert result["active"][0]["check_interval_days"] == 2
+    assert result["inactive"][0]["check_interval_days"] == 180
 
     saved = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
     assert saved["active_count"] == 1 and saved["inactive_count"] == 2 and saved["error_count"] == 1
