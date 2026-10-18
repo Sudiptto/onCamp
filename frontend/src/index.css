@@ -252,6 +252,37 @@ h1 {
   background: #f8f0d8;
 }
 
+.day.has-food {
+  background: #fff4d4;
+}
+
+.day.has-food.is-selected {
+  background: #f6e2a4;
+}
+
+.day.is-outside.has-food {
+  background: #fbf7f1;
+}
+
+.day-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.food-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #3a2a08;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+}
+
 .day-number {
   display: inline-grid;
   place-items: center;
@@ -272,13 +303,17 @@ h1 {
   height: 7px;
   margin: 6px auto 0;
   border-radius: 999px;
-  background: var(--gold-deep);
+  background: var(--purple);
 }
 
 .day-chips {
   display: grid;
   gap: 3px;
   margin-top: 4px;
+}
+
+.day-dot.is-food {
+  background: var(--gold);
 }
 
 .day-chip,
@@ -292,6 +327,11 @@ h1 {
   font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 4px;
+}
+
+.day-chip.is-food {
+  background: var(--gold);
+  color: #3a2a08;
 }
 
 .day-more {
@@ -318,8 +358,8 @@ h1 {
 }
 
 .event-card.is-selected {
-  border-color: var(--gold);
-  box-shadow: inset 3px 0 0 var(--gold);
+  border-color: var(--purple);
+  box-shadow: inset 3px 0 0 var(--purple);
 }
 
 .event-select {
@@ -344,6 +384,13 @@ h1 {
 .event-where {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.event-kicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .event-select strong {
@@ -398,6 +445,10 @@ h1 {
     min-height: 52px;
     padding: 4px 2px;
     text-align: center;
+  }
+
+  .day-top {
+    justify-content: center;
   }
 
   .day-chips {
