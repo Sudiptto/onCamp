@@ -17,12 +17,18 @@ exist (discover_clubs.py and run_ai_club_filter.py).
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 from app.college_config import get_college_config
-from jobs.ai.club_filter import DEFAULT_BATCH_SIZE, run_filter
+from jobs.ai.club_filter import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_CACHE_NAME,
+    IncompleteClassification,
+    run_filter,
+)
 from jobs.club_discovery import run as run_discovery
 
 ROOT = Path(__file__).resolve().parent
@@ -37,6 +43,7 @@ def run_full_pipeline(
     prompt_path: Path = DEFAULT_PROMPT,
     allow_empty: bool = False,
     batch_size: int = DEFAULT_BATCH_SIZE,
+    use_cache: bool = True,
 ) -> dict:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -53,6 +60,7 @@ def run_full_pipeline(
         prompt_path=prompt_path,
         allow_empty=allow_empty,
         batch_size=batch_size,
+        cache_path=output_dir / DEFAULT_CACHE_NAME if use_cache else None,
     )
 
     return {
@@ -77,19 +85,25 @@ def main() -> int:
     parser.add_argument("--prompt", type=Path, default=DEFAULT_PROMPT)
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--allow-empty", action="store_true")
+    parser.add_argument("--no-cache", action="store_true", help="Classify every account again.")
     args = parser.parse_args()
 
     config = get_college_config(args.college)
     seed = args.seed_account or config["seed_account"]
 
-    summary = run_full_pipeline(
-        college_key=args.college,
-        seed_account=seed,
-        output_dir=args.output_dir,
-        prompt_path=args.prompt,
-        allow_empty=args.allow_empty,
-        batch_size=args.batch_size,
-    )
+    try:
+        summary = run_full_pipeline(
+            college_key=args.college,
+            seed_account=seed,
+            output_dir=args.output_dir,
+            prompt_path=args.prompt,
+            allow_empty=args.allow_empty,
+            batch_size=args.batch_size,
+            use_cache=not args.no_cache,
+        )
+    except IncompleteClassification as exc:
+        print(json.dumps({"error": str(exc), "failed": exc.failed}, ensure_ascii=False, indent=2), file=sys.stderr)
+        return 1
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 

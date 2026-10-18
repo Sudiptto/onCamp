@@ -10,6 +10,12 @@ class BaseConfig:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Per-IP limit for every /api route. memory:// is fine for one dev server,
+    # use a shared store like redis:// if this ever runs on more than one process.
+    RATELIMIT_ENABLED = os.getenv("RATELIMIT_ENABLED", "1") == "1"
+    RATELIMIT_DEFAULT = os.getenv("RATELIMIT_DEFAULT", "120 per minute")
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True

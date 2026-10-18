@@ -5,17 +5,21 @@ class Club(db.Model):
     __tablename__ = "clubs"
 
     id = db.Column(db.Integer, primary_key=True)
+    college_id = db.Column(db.Integer, db.ForeignKey("colleges.id"), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     instagram_handle = db.Column(db.String(255), unique=True, nullable=False)
-    seed_account = db.Column(db.String(255), nullable=False, default="hunterusg")
+    # HikerAPI looks accounts up by this numeric id. Handles can change, the id doesn't.
+    instagram_user_id = db.Column(db.String(64), unique=True, nullable=True)
+    profile_pic_url = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     def to_dict(self):
         return {
             "id": self.id,
+            "college_id": self.college_id,
             "name": self.name,
             "instagram_handle": self.instagram_handle,
-            "seed_account": self.seed_account,
+            "profile_pic_url": self.profile_pic_url,
             "is_active": self.is_active,
         }

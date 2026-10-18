@@ -1,10 +1,16 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from jobs.ai.club_filter import DEFAULT_BATCH_SIZE, run_filter
+from jobs.ai.club_filter import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_CACHE_NAME,
+    IncompleteClassification,
+    run_filter,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -31,6 +37,17 @@ def main() -> int:
     )
     parser.add_argument("--prompt", type=Path, default=DEFAULT_PROMPT)
     parser.add_argument(
+        "--cache",
+        type=Path,
+        default=DEFAULT_DATA_DIR / DEFAULT_CACHE_NAME,
+        help="Remembers each result so reruns only send new accounts to DeepSeek.",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Ignore the cache and classify every account again.",
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=DEFAULT_BATCH_SIZE,
@@ -44,13 +61,18 @@ def main() -> int:
     args = parser.parse_args()
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
-    result = run_filter(
-        input_path=args.input,
-        filtered_output_path=args.output,
-        prompt_path=args.prompt,
-        allow_empty=args.allow_empty,
-        batch_size=args.batch_size,
-    )
+    try:
+        result = run_filter(
+            input_path=args.input,
+            filtered_output_path=args.output,
+            prompt_path=args.prompt,
+            allow_empty=args.allow_empty,
+            batch_size=args.batch_size,
+            cache_path=None if args.no_cache else args.cache,
+        )
+    except IncompleteClassification as exc:
+        print(json.dumps({"error": str(exc), "failed": exc.failed}, ensure_ascii=False, indent=2), file=sys.stderr)
+        return 1
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

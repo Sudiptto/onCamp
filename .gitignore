@@ -8,6 +8,8 @@ venv/
 .env
 backend/data/
 backend/sample/
+backend/instance/
+*.db
 
 # Node
 node_modules/
@@ -18,6 +20,9 @@ frontend/dist/
 .vscode/
 .DS_Store
 Thumbs.db
+
+.pytest_cache/
+.ruff_cache/
 
 # Logs
 *.log

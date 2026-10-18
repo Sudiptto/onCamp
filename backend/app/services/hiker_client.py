@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Any
 
 import requests
@@ -7,8 +8,29 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env"))
 
 
+# Rate limits and brief upstream outages are worth retrying. Anything else
+# (404, 403, bad key) will fail the same way again, so we raise right away.
+RETRYABLE_STATUS_CODES = {429, 502, 503, 504}
+MAX_RETRIES = 2
+RETRY_BASE_DELAY_SECONDS = 1.0
+MAX_RETRY_DELAY_SECONDS = 30.0
+
+
 class HikerAPIError(RuntimeError):
-    pass
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _retry_delay(response: requests.Response | None, attempt: int) -> float:
+    """Wait for Retry-After if the server sent one, otherwise back off 1s, 2s, 4s."""
+    retry_after = response.headers.get("Retry-After") if response is not None else None
+    if retry_after:
+        try:
+            return min(float(retry_after), MAX_RETRY_DELAY_SECONDS)
+        except ValueError:
+            pass
+    return min(RETRY_BASE_DELAY_SECONDS * 2**attempt, MAX_RETRY_DELAY_SECONDS)
 
 
 class HikerClient:
@@ -31,21 +53,28 @@ class HikerClient:
         if not self.access_key:
             raise HikerAPIError("Missing HIKERAPI_ACCESS_KEY. Add it to the project .env file.")
 
-        try:
-            response = requests.get(
-                f"{self.base_url}{path}",
-                params=params or {},
-                headers=self.headers,
-                timeout=30,
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.HTTPError as exc:
-            status = exc.response.status_code if exc.response is not None else "unknown"
-            detail = exc.response.text[:300] if exc.response is not None else str(exc)
-            raise HikerAPIError(f"HikerAPI request failed for {path} ({status}): {detail}") from exc
-        except requests.RequestException as exc:
-            raise HikerAPIError(f"HikerAPI request failed for {path}: {exc}") from exc
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                response = requests.get(
+                    f"{self.base_url}{path}",
+                    params=params or {},
+                    headers=self.headers,
+                    timeout=30,
+                )
+                response.raise_for_status()
+                return response.json()
+            except requests.HTTPError as exc:
+                status = exc.response.status_code if exc.response is not None else None
+                if status in RETRYABLE_STATUS_CODES and attempt < MAX_RETRIES:
+                    time.sleep(_retry_delay(exc.response, attempt))
+                    continue
+                detail = exc.response.text[:300] if exc.response is not None else str(exc)
+                raise HikerAPIError(
+                    f"HikerAPI request failed for {path} ({status or 'unknown'}): {detail}",
+                    status_code=status,
+                ) from exc
+            except requests.RequestException as exc:
+                raise HikerAPIError(f"HikerAPI request failed for {path}: {exc}") from exc
 
     def check_balance(self) -> Any:
         return self.get("/sys/balance")

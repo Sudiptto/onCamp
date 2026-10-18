@@ -44,14 +44,23 @@ def run(
 
     active: list[dict[str, Any]] = []
     inactive: list[dict[str, Any]] = []
-    errors: list[dict[str, str]] = []
+    errors: list[dict[str, Any]] = []
     for club in clubs:
         try:
             record = _record(club, client, now)
         except HikerAPIError as exc:
             # One failing account must not abort the run; it stays out of both lists.
-            errors.append({"user_id": str(club.get("user_id")), "username": club.get("username", ""), "error": str(exc)})
+            errors.append({
+                "user_id": str(club.get("user_id")),
+                "username": club.get("username", ""),
+                "error": str(exc),
+                "status_code": exc.status_code,
+            })
             print(f"Skipping {club.get('username')}: {exc}", file=sys.stderr)
+            if exc.status_code == 429:
+                # Still rate limited after retrying, so stop instead of failing on every remaining club.
+                print("Rate limited by HikerAPI, stopping this run early.", file=sys.stderr)
+                break
             continue
         (active if record["status"] == "active" else inactive).append(record)
 
