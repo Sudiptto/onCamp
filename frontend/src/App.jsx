@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { fetchClubOptions, fetchEvents } from './api'
+import { fetchClubOptions, fetchEvents, listSaved, toggleSaved } from './api'
+import LoginPage from './auth/LoginPage'
+import RegisterPage from './auth/RegisterPage'
+import { useAuth } from './auth/AuthContext'
 import {
   closestDate,
   formatLongDate,
@@ -44,7 +47,7 @@ function ClubMark({ name, src }) {
   )
 }
 
-function EventCard({ event, selected, onSelect }) {
+function EventCard({ event, selected, saved, onSelect, onToggleSave }) {
   return (
     <article className={selected ? 'event-card is-selected' : 'event-card'}>
       <button type="button" className="event-select" onClick={() => onSelect(event.date)}>
@@ -71,18 +74,30 @@ function EventCard({ event, selected, onSelect }) {
             Sign up
           </a>
         )}
+        <button
+          type="button"
+          className={saved ? 'save-button is-saved' : 'save-button'}
+          aria-pressed={saved}
+          onClick={() => onToggleSave(event)}
+        >
+          {saved ? 'Saved' : 'Save'}
+        </button>
       </div>
     </article>
   )
 }
 
 export default function App() {
+  const { user, logout } = useAuth()
   const today = toISODate(new Date())
+  const [screen, setScreen] = useState('calendar')
   const [mode, setMode] = useState('upcoming')
   const [range, setRange] = useState('2w')
   const [clubId, setClubId] = useState('')
   const [clubs, setClubs] = useState([])
   const [payload, setPayload] = useState(null)
+  const [savedEvents, setSavedEvents] = useState([])
+  const [savedOnly, setSavedOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cursor, setCursor] = useState(() => {
@@ -91,6 +106,8 @@ export default function App() {
   })
   const [selected, setSelected] = useState(today)
   const [foodOnly, setFoodOnly] = useState(false)
+  const savedOnlyRef = useRef(false)
+  savedOnlyRef.current = savedOnly
 
   useEffect(() => {
     let cancelled = false
@@ -106,12 +123,28 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
+    if (!user) {
+      setSavedEvents([])
+      setSavedOnly(false)
+      return undefined
+    }
+    listSaved(user.email).then((events) => {
+      if (!cancelled) setSavedEvents(events)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  useEffect(() => {
+    let cancelled = false
     setLoading(true)
     setError('')
     fetchEvents({ mode, range, clubId })
       .then((data) => {
         if (cancelled) return
         setPayload(data)
+        if (savedOnlyRef.current) return
         const focus = closestDate(data.events, today)
         const [year, month] = focus.split('-').map(Number)
         setCursor({ year, month: month - 1 })
@@ -132,7 +165,16 @@ export default function App() {
   }, [mode, range, clubId, today])
 
   const allEvents = payload?.events ?? []
-  const events = foodOnly ? allEvents.filter((event) => event.free_food) : allEvents
+  const savedIds = useMemo(
+    () => new Set(savedEvents.map((event) => event.event_id)),
+    [savedEvents],
+  )
+  const sourceEvents = savedOnly ? savedEvents : allEvents
+  const events = sourceEvents.filter((event) => {
+    if (foodOnly && !event.free_food) return false
+    if (clubId && event.club_id !== clubId) return false
+    return true
+  })
   const foodCount = allEvents.filter((event) => event.free_food).length
   const byDate = useMemo(() => {
     const grouped = new Map()
@@ -152,6 +194,27 @@ export default function App() {
     setCursor({ year, month: month - 1 })
   }
 
+  function toggleSavedView() {
+    if (!user) {
+      setScreen('login')
+      return
+    }
+    const next = !savedOnly
+    setSavedOnly(next)
+    if (!next) return
+    const visible = savedEvents.filter((event) => !foodOnly || event.free_food)
+    if (visible.length) focusDate(closestDate(visible, today))
+  }
+
+  async function onToggleSave(event) {
+    if (!user) {
+      setScreen('login')
+      return
+    }
+    const next = await toggleSaved(user.email, event)
+    setSavedEvents(next)
+  }
+
   function toggleFood() {
     const next = !foodOnly
     setFoodOnly(next)
@@ -165,15 +228,56 @@ export default function App() {
     setCursor({ year: next.getFullYear(), month: next.getMonth() })
   }
 
-  const viewLabel = mode === 'archive' ? 'Past semester' : RANGES.find((item) => item.id === range)?.label
+  const viewLabel = savedOnly
+    ? 'Saved'
+    : mode === 'archive'
+      ? 'Past semester'
+      : RANGES.find((item) => item.id === range)?.label
+
+  if (screen === 'login') {
+    return (
+      <LoginPage
+        onRegister={() => setScreen('register')}
+        onSuccess={() => setScreen('calendar')}
+        onBack={() => setScreen('calendar')}
+      />
+    )
+  }
+
+  if (screen === 'register') {
+    return (
+      <RegisterPage
+        onLogin={() => setScreen('login')}
+        onSuccess={() => setScreen('calendar')}
+        onBack={() => setScreen('calendar')}
+      />
+    )
+  }
 
   return (
     <div className="page">
       <header className="masthead">
         <div className="masthead-inner">
-          <p className="eyebrow">Hunter College</p>
-          <h1>onCamp</h1>
-          <p className="lede">Club events, in one calendar.</p>
+          <div>
+            <p className="eyebrow">Hunter College</p>
+            <h1>onCamp</h1>
+            <p className="lede">Club events, in one calendar.</p>
+          </div>
+          <div className="account-bar">
+            {user ? (
+              <>
+                <span>{user.name}</span>
+                <button type="button" onClick={logout}>Sign out</button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => setScreen('login')}>Sign in</button>
+                <button type="button" className="account-primary" onClick={() => setScreen('register')}>
+                  Create account
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -196,6 +300,9 @@ export default function App() {
             </button>
             <button type="button" aria-pressed={foodOnly} onClick={toggleFood}>
               Free food
+            </button>
+            <button type="button" aria-pressed={savedOnly} onClick={toggleSavedView}>
+              Saved
             </button>
           </div>
 
@@ -230,7 +337,7 @@ export default function App() {
         <p className="status-line">
           {loading && 'Loading events…'}
           {!loading && error && error}
-          {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}`}
+          {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${!savedOnly && foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}`}
         </p>
 
         <div className="layout">
@@ -304,7 +411,13 @@ export default function App() {
           <section className="schedule" aria-label="Events in this view">
             <h2>{mode === 'archive' ? 'Archive' : 'Schedule'}</h2>
             {!loading && !error && events.length === 0 && (
-              <p className="empty">{foodOnly ? 'No free food in this view.' : 'No events in this view.'}</p>
+              <p className="empty">
+                {savedOnly
+                  ? 'No saved events yet.'
+                  : foodOnly
+                    ? 'No free food in this view.'
+                    : 'No events in this view.'}
+              </p>
             )}
             <div className="schedule-list">
               {events.map((event) => (
@@ -312,7 +425,9 @@ export default function App() {
                   key={event.event_id}
                   event={event}
                   selected={event.date === selected}
+                  saved={savedIds.has(event.event_id)}
                   onSelect={focusDate}
+                  onToggleSave={onToggleSave}
                 />
               ))}
             </div>
