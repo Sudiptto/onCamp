@@ -56,6 +56,34 @@ a {
   max-width: 1120px;
   margin: 0 auto;
   padding: 28px 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.account-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: #fffaf2;
+  font-weight: 700;
+}
+
+.account-bar button {
+  border: 1px solid rgba(255, 250, 242, 0.45);
+  background: transparent;
+  color: #fffaf2;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+}
+
+.account-bar .account-primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #3a2a08;
 }
 
 .eyebrow {
@@ -105,6 +133,11 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.range-switch {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
 }
 
 .mode-switch button,
@@ -176,6 +209,7 @@ h1 {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+  min-width: 0;
 }
 
 .calendar-nav h2,
@@ -192,13 +226,18 @@ h1 {
   padding: 0;
   font-size: 1.3rem;
   line-height: 1;
+  flex: 0 0 auto;
 }
 
-.today-button {
+.calendar-nav .today-button {
   width: auto;
-  height: auto;
+  height: 36px;
   margin-left: auto;
-  font-size: 0.95rem;
+  padding: 0 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .weekday-row,
@@ -349,6 +388,17 @@ h1 {
   max-height: 720px;
   overflow: auto;
   padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #d9cbb8 transparent;
+}
+
+.schedule-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb {
+  background: #d9cbb8;
+  border-radius: 999px;
 }
 
 .event-card {
@@ -416,10 +466,106 @@ h1 {
 .event-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   padding: 0 12px 12px 64px;
   font-weight: 700;
   font-size: 0.92rem;
+}
+
+.save-button {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--purple);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+}
+
+.save-button.is-saved {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fffaf2;
+}
+
+.auth-card {
+  max-width: 420px;
+  margin: 12px auto 0;
+  padding: 24px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.auth-card h2 {
+  margin: 0;
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 560;
+}
+
+.auth-card label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.auth-card input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  color: var(--ink);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.auth-note,
+.auth-switch {
+  margin: 0;
+  color: var(--muted);
+}
+
+.auth-error {
+  margin: 0;
+  color: #8a2b2b;
+  font-weight: 700;
+}
+
+.auth-submit,
+.auth-back,
+.auth-switch button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-submit {
+  border: 0;
+  border-radius: 999px;
+  background: var(--purple);
+  color: #fffaf2;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+}
+
+.auth-switch button,
+.auth-back {
+  border: 0;
+  background: transparent;
+  color: var(--purple);
+  font-weight: 700;
+  padding: 0;
+}
+
+.auth-back {
+  justify-self: start;
 }
 
 .empty {
@@ -428,6 +574,17 @@ h1 {
 }
 
 @media (max-width: 860px) {
+  .masthead-inner,
+  .account-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .range-switch {
+    padding-left: 0;
+    border-left: 0;
+  }
+
   .club-filter {
     margin-left: 0;
     width: 100%;
