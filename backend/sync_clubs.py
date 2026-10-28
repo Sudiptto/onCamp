@@ -15,7 +15,7 @@ from pathlib import Path
 
 from app import create_app
 from app.extensions import db
-from app.models import Club, College
+from app.models import ArchivedClub, Club, College
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT = ROOT / "data" / "clubs.json"
@@ -47,6 +47,9 @@ def sync_clubs(records: list[dict], college_key: str) -> dict:
         )
 
     created, updated, skipped = 0, 0, 0
+    archived = ArchivedClub.query.all()
+    archived_ids = {a.instagram_user_id for a in archived if a.instagram_user_id}
+    archived_handles = {a.instagram_handle for a in archived}
 
     for record in records:
         handle = (record.get("username") or "").strip()
@@ -58,6 +61,11 @@ def sync_clubs(records: list[dict], college_key: str) -> dict:
         user_id = str(record.get("user_id") or "").strip() or None
         display_name = (record.get("full_name") or handle).strip()
         profile_pic_url = (record.get("profile_pic_url") or "").strip() or None
+
+        # Archived clubs (no post in 2+ years) stay out until restored manually.
+        if user_id in archived_ids or handle in archived_handles:
+            skipped += 1
+            continue
 
         club = _find_club(user_id, handle)
         if club is None:

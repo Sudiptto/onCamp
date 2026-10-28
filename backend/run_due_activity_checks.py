@@ -111,7 +111,7 @@ def main() -> int:
             limit=None if args.all else args.limit,
             now=now,
         )
-        records = pipeline_result["active"] + pipeline_result["inactive"]
+        records = pipeline_result["active"] + pipeline_result["inactive"] + pipeline_result["archived"]
         sync_summary = sync_club_activity(
             records, now=now, errors=pipeline_result["errors"]
         )

@@ -9,22 +9,22 @@ _CLUBS = {
     "club_004": ("Hunter Film Collective", "hunter_film", "https://instagram.com/hunter_film"),
 }
 
-# (id, club_id, name, form link, days from today, "HH:MM" start, "HH:MM" end, location, post shortcode)
+# (id, club_id, name, form link, days from today, start, end, location, post shortcode, free food)
 _EVENTS = [
-    ("evt_001", "club_001", "Intro to Git Workshop", None, 1, "17:00", "18:30", "Hunter North 1001", "Cabc001"),
-    ("evt_002", "club_002", "Open Dance Practice", None, 2, "18:00", "20:00", "Thomas Hunter Hall, Room 305", "Cabc002"),
-    ("evt_003", "club_003", "MCAT Study Session", "https://forms.gle/mock-mcat", 4, "16:00", "18:00", "Hunter West 420", "Cabc003"),
-    ("evt_004", "club_004", "Movie Night: Short Films", None, 6, "19:00", "21:30", "Hunter East 214", "Cabc004"),
-    ("evt_005", "club_001", "Hackathon Kickoff", "https://forms.gle/mock-hack", 10, "10:00", "17:00", "Hunter North 1001", "Cabc005"),
-    ("evt_006", "club_002", "Spring Showcase Auditions", "https://forms.gle/mock-audition", 13, "17:30", "20:00", "Assembly Hall", "Cabc006"),
-    ("evt_007", "club_003", "Med School Panel", None, 24, "18:00", "19:30", "Hunter West 1214", "Cabc007"),
-    ("evt_008", "club_004", "Student Film Festival", "https://forms.gle/mock-fest", 45, "18:00", "22:00", "Kaye Playhouse", "Cabc008"),
-    ("evt_009", "club_001", "Demo Day", None, 80, "15:00", "18:00", "Hunter North 1001", "Cabc009"),
+    ("evt_001", "club_001", "Intro to Git Workshop", None, 1, "17:00", "18:30", "Hunter North 1001", "Cabc001", True),
+    ("evt_002", "club_002", "Open Dance Practice", None, 2, "18:00", "20:00", "Thomas Hunter Hall, Room 305", "Cabc002", False),
+    ("evt_003", "club_003", "MCAT Study Session", "https://forms.gle/mock-mcat", 4, "16:00", "18:00", "Hunter West 420", "Cabc003", True),
+    ("evt_004", "club_004", "Movie Night: Short Films", None, 6, "19:00", "21:30", "Hunter East 214", "Cabc004", False),
+    ("evt_005", "club_001", "Hackathon Kickoff", "https://forms.gle/mock-hack", 10, "10:00", "17:00", "Hunter North 1001", "Cabc005", True),
+    ("evt_006", "club_002", "Spring Showcase Auditions", "https://forms.gle/mock-audition", 13, "17:30", "20:00", "Assembly Hall", "Cabc006", False),
+    ("evt_007", "club_003", "Med School Panel", None, 24, "18:00", "19:30", "Hunter West 1214", "Cabc007", False),
+    ("evt_008", "club_004", "Student Film Festival", "https://forms.gle/mock-fest", 45, "18:00", "22:00", "Kaye Playhouse", "Cabc008", True),
+    ("evt_009", "club_001", "Demo Day", None, 80, "15:00", "18:00", "Hunter North 1001", "Cabc009", False),
     # Past events (archive only)
-    ("evt_010", "club_002", "Fall Welcome Mixer", None, -3, "17:00", "19:00", "Hunter West Lobby", "Cabc010"),
-    ("evt_011", "club_001", "Python Basics Night", None, -20, "17:00", "18:30", "Hunter North 1001", "Cabc011"),
-    ("evt_012", "club_003", "Clinical Volunteering Info Session", "https://forms.gle/mock-clinical", -45, "18:00", "19:30", "Hunter West 420", "Cabc012"),
-    ("evt_013", "club_004", "Screenwriting Meetup", None, -90, "16:00", "18:00", "Hunter East 214", "Cabc013"),
+    ("evt_010", "club_002", "Fall Welcome Mixer", None, -3, "17:00", "19:00", "Hunter West Lobby", "Cabc010", True),
+    ("evt_011", "club_001", "Python Basics Night", None, -20, "17:00", "18:30", "Hunter North 1001", "Cabc011", False),
+    ("evt_012", "club_003", "Clinical Volunteering Info Session", "https://forms.gle/mock-clinical", -45, "18:00", "19:30", "Hunter West 420", "Cabc012", True),
+    ("evt_013", "club_004", "Screenwriting Meetup", None, -90, "16:00", "18:00", "Hunter East 214", "Cabc013", False),
 ]
 
 # FILTER VIA DATABASE
@@ -52,7 +52,7 @@ def get_mock_events(
     earliest = today - timedelta(days=ARCHIVE_DAYS) if include_past else today
 
     events = []
-    for eid, cid, name, link, offset, start, end_t, location, shortcode in _EVENTS:
+    for eid, cid, name, link, offset, start, end_t, location, shortcode, free_food in _EVENTS:
         day = today + timedelta(days=offset)
         if day < earliest or (end and day > end):
             continue
@@ -67,6 +67,7 @@ def get_mock_events(
             "club_pfp": f"https://placehold.co/128x128?text={handle[:2].upper()}",
             "event_name": name,
             "event_link": link,
+            "free_food": free_food,
             "date": day.isoformat(),
             "start_time": start,
             "end_time": end_t,

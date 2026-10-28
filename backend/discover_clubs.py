@@ -12,7 +12,7 @@ from jobs.club_discovery.pipeline import default_output_dir
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Discover club accounts from a seed Instagram account.")
-    parser.add_argument("--college", default=os.getenv("COLLEGE_KEY", "hunter"), help="College key for the current campus; currently Hunter is the only supported value")
+    parser.add_argument("--college", default=os.getenv("COLLEGE_KEY", "hunter"), help="College key for the current campus")
     parser.add_argument("--seed-account", default=None, help="Instagram username to resolve and scan")
     parser.add_argument("--output-dir", default=default_output_dir(), help="Directory to write discovery outputs")
     args = parser.parse_args()

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+﻿from datetime import datetime, timedelta, timezone
 
 from jobs.activity_check.buckets import classify_activity
 from jobs.activity_check.posts import parse_latest_post
@@ -43,8 +43,8 @@ def test_classify_boundaries():
     assert bucket(0)["status"] == "active"
     assert bucket(90)["status"] == "active"
     assert bucket(91)["status"] == "inactive"
-    assert bucket(90)["check_interval_days"] == 1
-    assert bucket(91)["check_interval_days"] == 30
+    assert bucket(90)["check_interval_days"] == 2
+    assert bucket(91)["check_interval_days"] == 180
 
 
 def test_classify_no_posts_is_inactive():
@@ -52,4 +52,9 @@ def test_classify_no_posts_is_inactive():
 
     assert result["status"] == "inactive"
     assert result["days_since_last_post"] is None
-    assert result["check_interval_days"] == 30
+    assert result["check_interval_days"] == 180
+
+
+def test_classify_archives_after_two_years():
+    assert classify_activity(NOW - timedelta(days=730), NOW)["status"] == "inactive"
+    assert classify_activity(NOW - timedelta(days=731), NOW)["status"] == "archived"

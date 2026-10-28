@@ -212,3 +212,16 @@ def test_cors_allows_only_frontend():
 
     assert allowed.headers.get("Access-Control-Allow-Origin") == "http://localhost:5173"
     assert "Access-Control-Allow-Origin" not in blocked.headers
+
+
+def test_archived_club_is_removed_and_not_readded(app):
+    from app.models import ArchivedClub
+
+    sync_clubs([club_record("old", "9")], "hunter")
+    summary = sync_club_activity([activity_record("9", "old", status="archived")], now=NOW)
+
+    assert summary["archived"] == 1
+    assert Club.query.count() == 0 and ClubActivity.query.count() == 0
+    assert ArchivedClub.query.one().instagram_handle == "old"
+    assert sync_clubs([club_record("old", "9")], "hunter")["skipped"] == 1
+    assert Club.query.count() == 0

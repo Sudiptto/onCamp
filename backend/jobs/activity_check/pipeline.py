@@ -44,6 +44,7 @@ def run(
 
     active: list[dict[str, Any]] = []
     inactive: list[dict[str, Any]] = []
+    archived: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
     for club in clubs:
         try:
@@ -62,16 +63,18 @@ def run(
                 print("Rate limited by HikerAPI, stopping this run early.", file=sys.stderr)
                 break
             continue
-        (active if record["status"] == "active" else inactive).append(record)
+        {"active": active, "archived": archived}.get(record["status"], inactive).append(record)
 
     result = {
         "generated_at": now.isoformat(),
-        "checked_count": len(active) + len(inactive),
+        "checked_count": len(active) + len(inactive) + len(archived),
         "active_count": len(active),
         "inactive_count": len(inactive),
+        "archived_count": len(archived),
         "error_count": len(errors),
         "active": active,
         "inactive": inactive,
+        "archived": archived,
         "errors": errors,
     }
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
