@@ -15,6 +15,13 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.config.from_object(get_config())
     app.config.update(config_overrides or {})
 
+    if (
+        os.getenv("APP_ENV") == "production"
+        and not os.getenv("SECRET_KEY")
+        and not (config_overrides or {}).get("SECRET_KEY")
+    ):
+        raise RuntimeError("SECRET_KEY must be set in production.")
+
     db.init_app(app)
     limiter.init_app(app)
 
@@ -23,7 +30,7 @@ def create_app(config_overrides: dict | None = None) -> Flask:
         for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
         if origin.strip()
     ]
-    cors.init_app(app, resources={r"/api/*": {"origins": origins}})
+    cors.init_app(app, resources={r"/api/*": {"origins": origins}}, supports_credentials=True)
 
     app.register_blueprint(api_bp)
 
@@ -31,7 +38,8 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     def too_many_requests(_error):
         return jsonify({"error": "Too many requests, please slow down."}), 429
 
-    with app.app_context():
-        db.create_all()
+    if app.config.get("AUTO_CREATE_TABLES", True):
+        with app.app_context():
+            db.create_all()
 
     return app

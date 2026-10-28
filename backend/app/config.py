@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 
 class BaseConfig:
@@ -9,6 +10,18 @@ class BaseConfig:
         "sqlite:///oncamp_dev.db",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # HTTP-only so JavaScript can't read the session cookie.
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+    SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+
+    # Client ID from the Google Cloud Console. Tokens made for any other app get rejected.
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+
+    # How many days ahead logged out people can see. Signing in shows the rest.
+    ANON_EVENT_DAYS = int(os.getenv("ANON_EVENT_DAYS", "7"))
 
     # Per-IP limit for every /api route. memory:// is fine for one dev server,
     # use a shared store like redis:// if this ever runs on more than one process.
@@ -23,6 +36,7 @@ class DevelopmentConfig(BaseConfig):
 
 class ProductionConfig(BaseConfig):
     DEBUG = False
+    SESSION_COOKIE_SECURE = True
 
 
 config = {

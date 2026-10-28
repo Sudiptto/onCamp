@@ -1,6 +1,6 @@
 # Events API (mock data)
 
-Base URL: `http://localhost:5000/api`. All routes are `GET` and currently return mock data from `app/api/mock_events.py`.
+Base URL: `http://localhost:5000/api`. All routes are `GET`. Signed-out visitors only receive events up to 7 days ahead (see `AUTH.md`); `/events/archive` needs a signed-in user. Data is currently mock data from `app/api/mock_events.py`.
 
 | Route | Purpose |
 |---|---|
@@ -30,6 +30,7 @@ Base URL: `http://localhost:5000/api`. All routes are `GET` and currently return
     "club_pfp": "https://placehold.co/128x128?text=HU",
     "event_name": "Intro to Git Workshop",
     "event_link": null,
+    "free_food": true,
     "date": "2026-10-07",
     "start_time": "17:00",
     "end_time": "18:30",
@@ -42,7 +43,9 @@ Base URL: `http://localhost:5000/api`. All routes are `GET` and currently return
 
 - `date` is `YYYY-MM-DD`; times are 24-hour `HH:MM`.
 - `event_link` is `null` when there is no form or RSVP link.
+- `free_food` is a JSON boolean (`true` or `false`).
 - `range` is `"archive"` for the archive route.
+- `limited` is `true` when events were withheld because the caller is signed out; `locked_count` is how many.
 
 ## Notes
 
