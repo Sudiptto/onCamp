@@ -1,8 +1,10 @@
 import os
+from datetime import date, timedelta
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 
 from app.api import api_bp
+from app.api.auth_helpers import current_user, login_required
 from app.api.mock_events import RANGES, get_mock_events
 from app.services import DiscoveryService
 
@@ -28,7 +30,29 @@ def get_status():
 
 
 def _events_response(events, range_key):
-    return jsonify({"range": range_key, "count": len(events), "events": events})
+    # All the events routes go through here so the sign-in limit is in one spot.
+    # Logged out people only get the next ANON_EVENT_DAYS days. We send a count of
+    # what was hidden so the page can ask them to sign in, but not the events themselves.
+    # TODO: when events come from the database, put this cutoff in the query too.
+    locked = 0
+    if current_user() is None:
+        days = current_app.config.get("ANON_EVENT_DAYS", 7)
+        cutoff = (date.today() + timedelta(days=days)).isoformat()
+        visible = [event for event in events if event["date"] <= cutoff]
+        locked = len(events) - len(visible)
+        events = visible
+
+    response = jsonify({
+        "range": range_key,
+        "count": len(events),
+        "events": events,
+        "limited": locked > 0,
+        "locked_count": locked,
+    })
+    # same URL gives different results depending on who is logged in
+    response.headers["Vary"] = "Cookie"
+    response.headers["Cache-Control"] = "private"
+    return response
 
 
 @api_bp.route("/events", methods=["GET"])
@@ -51,6 +75,7 @@ def filter_events():
 
 
 @api_bp.route("/events/archive", methods=["GET"])
+@login_required
 def get_archived_events():
     # FILTER VIA DATABASE
     # Later: SELECT all events (past + upcoming) since the start of last semester.

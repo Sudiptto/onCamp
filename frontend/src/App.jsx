@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { fetchClubOptions, fetchEvents } from './api'
+import AccountMenu from './components/auth/AccountMenu'
+import AuthForm from './components/auth/AuthForm'
+import { useAuth } from './context/AuthContext'
 import {
   closestDate,
   formatLongDate,
@@ -91,8 +94,22 @@ export default function App() {
   })
   const [selected, setSelected] = useState(today)
   const [foodOnly, setFoodOnly] = useState(false)
+  const { user, authLoading } = useAuth()
+  const [authFormOpen, setAuthFormOpen] = useState(false)
+  const [authPrompt, setAuthPrompt] = useState('')
+
+  function openSignIn(message = '') {
+    setAuthPrompt(message)
+    setAuthFormOpen(true)
+  }
+
+  // archive needs an account, so go back to Upcoming if they sign out there
+  useEffect(() => {
+    if (!authLoading && !user && mode === 'archive') setMode('upcoming')
+  }, [authLoading, user, mode])
 
   useEffect(() => {
+    if (authLoading) return undefined
     let cancelled = false
     fetchClubOptions()
       .then((list) => {
@@ -102,9 +119,10 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [authLoading, user?.id])
 
   useEffect(() => {
+    if (authLoading) return undefined
     let cancelled = false
     setLoading(true)
     setError('')
@@ -129,7 +147,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [mode, range, clubId, today])
+  }, [mode, range, clubId, today, authLoading, user?.id])
 
   const allEvents = payload?.events ?? []
   const events = foodOnly ? allEvents.filter((event) => event.free_food) : allEvents
@@ -174,6 +192,9 @@ export default function App() {
           <p className="eyebrow">Hunter College</p>
           <h1>onCamp</h1>
           <p className="lede">Club events, in one calendar.</p>
+          <div className="masthead-account">
+            <AccountMenu onSignIn={() => openSignIn()} />
+          </div>
         </div>
       </header>
 
@@ -190,7 +211,7 @@ export default function App() {
             <button
               type="button"
               aria-pressed={mode === 'archive'}
-              onClick={() => setMode('archive')}
+              onClick={() => (user ? setMode('archive') : openSignIn('Sign in with Google to browse past events.'))}
             >
               Archive
             </button>
@@ -303,6 +324,16 @@ export default function App() {
 
           <section className="schedule" aria-label="Events in this view">
             <h2>{mode === 'archive' ? 'Archive' : 'Schedule'}</h2>
+            {payload?.limited && (
+              <div className="unlock-banner" role="note">
+                <span>
+                  {payload.locked_count} more event{payload.locked_count === 1 ? '' : 's'} later on.
+                </span>
+                <button type="button" onClick={() => openSignIn('Sign in with Google to see every upcoming event.')}>
+                  Sign in to see them
+                </button>
+              </div>
+            )}
             {!loading && !error && events.length === 0 && (
               <p className="empty">{foodOnly ? 'No free food in this view.' : 'No events in this view.'}</p>
             )}
@@ -319,6 +350,7 @@ export default function App() {
           </section>
         </div>
       </main>
+      {authFormOpen && <AuthForm message={authPrompt} onClose={() => setAuthFormOpen(false)} />}
     </div>
   )
 }
