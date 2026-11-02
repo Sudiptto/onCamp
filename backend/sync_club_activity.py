@@ -79,6 +79,10 @@ def _archive_club(club: Club, activity: ClubActivity, archived_at: datetime) -> 
     ArchivedEvent.query.filter_by(club_id=club.id).delete()
     ClubPostCheckpoint.query.filter_by(club_id=club.id).delete()
     db.session.delete(activity)
+    # club_activity points at clubs, and there's no relationship telling SQLAlchemy which
+    # DELETE must run first. Flush so the activity row is gone before the club row;
+    # PostgreSQL refuses the other order (SQLite doesn't check foreign keys by default).
+    db.session.flush()
     db.session.delete(club)
 
 
