@@ -6,11 +6,6 @@ COLLEGE_CONFIGS = {
         "college_name": "Hunter College",
         "seed_account": "hunterusg",
     },
-    "midwood": {
-        "college_key": "midwood",
-        "college_name": "Midwood High School",
-        "seed_account": "therealmidwoodhs",
-    },
 }
 
 

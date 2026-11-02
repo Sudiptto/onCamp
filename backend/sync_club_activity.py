@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 
 from app import create_app
 from app.extensions import db
-from app.models import ArchivedClub, Club, ClubActivity, Event
+from app.models import ArchivedClub, ArchivedEvent, Club, ClubActivity, ClubPostCheckpoint, Event
 from jobs.activity_check import run as run_activity_check
 
 ERROR_BACKOFF_DAYS = 30
@@ -76,6 +76,8 @@ def _archive_club(club: Club, activity: ClubActivity, archived_at: datetime) -> 
         archived_at=archived_at,
     ))
     Event.query.filter_by(club_id=club.id).delete()
+    ArchivedEvent.query.filter_by(club_id=club.id).delete()
+    ClubPostCheckpoint.query.filter_by(club_id=club.id).delete()
     db.session.delete(activity)
     db.session.delete(club)
 

@@ -20,11 +20,11 @@ cd backend
 .\venv\Scripts\python.exe discover_clubs.py --college hunter
 ```
 
-Run the discovery and AI-filter stages together for Midwood High School:
+Run the discovery and AI-filter stages together for a college:
 
 ```powershell
 cd backend
-.\venv\Scripts\python.exe run_full_pipeline.py --college midwood --output-dir data\midwood-high-school
+.\venv\Scripts\python.exe run_full_pipeline.py --college hunter
 ```
 
 The future scheduler should call `run()` and replace its file output with a database repository. The trigger itself is intentionally out of scope for this stage.
@@ -43,4 +43,19 @@ Output is `club_activity.json` with `active` and `inactive` lists (post id, post
 cd backend
 .\venv\Scripts\python.exe run_activity_check.py --limit 5   # cheap sample (default 5)
 .\venv\Scripts\python.exe run_activity_check.py --all       # every club, one API call each
+```
+
+## Post extraction (events)
+
+`run_post_extraction.py` turns active clubs' Instagram posts into upcoming events. Posts are never stored; only events are.
+
+- Active clubs are scanned every 2 days (`--due`, picked by `club_post_checkpoints.checked_at`).
+- Each club has a checkpoint (newest post id and date processed), so a post is sent to the AI at most once.
+- Only events that have not happened yet (compared to the job's launch time, campus time) are saved to `events`. Past or undated events are skipped.
+- At the start of every run, finished events move from `events` to `archived_events`.
+
+```powershell
+cd backend
+python run_post_extraction.py --due --college hunter --limit 5
+python run_post_extraction.py --username hunter_bsa --count 3
 ```

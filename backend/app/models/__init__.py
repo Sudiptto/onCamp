@@ -3,8 +3,9 @@ from .club import Club
 from .club_activity import ClubActivity
 from .archived_club import ArchivedClub
 from .event import Event
+from .archived_event import ArchivedEvent
 from .user import User
-from .club_post import ClubPost, ClubPostCheckpoint
+from .club_post import ClubPostCheckpoint
 
 __all__ = [
     "College",
@@ -12,8 +13,8 @@ __all__ = [
     "ClubActivity",
     "ArchivedClub",
     "Event",
+    "ArchivedEvent",
     "User",
-    "ClubPost",
     "ClubPostCheckpoint",
 ]
 

@@ -2,16 +2,27 @@ from app.extensions import db
 
 
 class Event(db.Model):
+    """An upcoming event pulled from a club's Instagram post.
+
+    Only upcoming events live here. Once an event has passed it is moved to
+    archived_events (see app/services/event_archive.py).
+    """
+
     __tablename__ = "events"
 
     id = db.Column(db.Integer, primary_key=True)
     club_id = db.Column(db.Integer, db.ForeignKey("clubs.id"), nullable=False)
+    college_id = db.Column(db.Integer, db.ForeignKey("colleges.id"), nullable=False)
+    # The Instagram post this event came from. Unique so one post can never create two events.
+    post_id = db.Column(db.String(255), unique=True, nullable=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
+    # Campus local time (America/New_York), stored without a timezone.
     start_time = db.Column(db.DateTime, nullable=True)
     end_time = db.Column(db.DateTime, nullable=True)
     location = db.Column(db.String(255), nullable=True)
     is_free_food = db.Column(db.Boolean, default=False)
+    google_form_url = db.Column(db.String(500), nullable=True)
     source_url = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
@@ -25,6 +36,7 @@ class Event(db.Model):
             "end_time": self.end_time.isoformat() if self.end_time else None,
             "location": self.location,
             "is_free_food": self.is_free_food,
+            "google_form_url": self.google_form_url,
             "source_url": self.source_url,
         }
 
