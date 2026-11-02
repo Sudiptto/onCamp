@@ -56,7 +56,8 @@ def scan_club(club: Club, client: HikerClient, count: int, now: datetime) -> dic
         f"  fetched {result['fetched']} | already checked {result['already_checked']} | "
         f"processed {result['processed']} | events added {len(result['events'])} | "
         f"not events {result['not_events']} | past (skipped) {result['past_events']} | "
-        f"undated (skipped) {result['undated_events']}"
+        f"undated (skipped) {result['undated_events']} | "
+        f"duplicates (skipped) {result['duplicate_events']}"
     )
     for event in result["events"]:
         _show(event)

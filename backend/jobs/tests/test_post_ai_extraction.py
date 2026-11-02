@@ -4,6 +4,8 @@ import pytest
 
 from app import create_app
 from app.extensions import db
+from sqlalchemy.exc import IntegrityError
+
 from app.models import ArchivedEvent, Club, ClubActivity, ClubPostCheckpoint, Event
 from app.services.event_archive import archive_past_events
 from jobs.post_extraction.ai import ExtractionError, find_google_form_url, parse_extraction
@@ -112,7 +114,7 @@ def test_second_run_does_not_recheck_posts(club):
     second = process_club_posts(club, raw, 3, extractor=counting, now=NOW)
     assert second["processed"] == 0 and second["already_checked"] == 2 and calls == []
 
-    third = process_club_posts(club, medias(("3", 3000, "future event"), ("2", 2000, "x")), 3, extractor=counting, now=NOW)
+    third = process_club_posts(club, medias(("3", 3000, "future event two"), ("2", 2000, "x")), 3, extractor=counting, now=NOW)
     assert third["processed"] == 1 and len(calls) == 1
 
     checkpoint = ClubPostCheckpoint.query.one()
@@ -177,3 +179,75 @@ def test_archive_past_events_moves_finished_events(club):
     assert {e.post_id for e in Event.query} == {"date-only-today", "upcoming"}
     assert {e.post_id for e in ArchivedEvent.query} == {"over", "date-only-yesterday"}
     assert archive_past_events(NOW) == 0
+
+
+def test_reminder_post_for_same_event_is_skipped(club):
+    # Monday's announcement and Tuesday's reminder: two posts, one event.
+    raw = medias(("1", 1000, "future event pizza"), ("2", 2000, "reminder: future event tomorrow"))
+
+    def same_event(caption, posted_at, club_name, college_name):
+        details = fake_extractor(caption, posted_at, club_name, college_name)
+        if caption.startswith("reminder"):
+            details["title"] = "FUTURE EVENT pizza"  # same title, other capitalization
+            details["start_time"] = FUTURE.replace(hour=0)  # the reminder only gives the day
+        return details
+
+    result = process_club_posts(club, raw, 5, extractor=same_event, now=NOW)
+
+    assert result["duplicate_events"] == 1 and result["processed"] == 2
+    assert Event.query.one().post_id == "1"
+    assert ClubPostCheckpoint.query.one().last_post_id == "2"  # the reminder isn't retried
+
+
+def test_same_title_on_another_day_is_a_different_event(club):
+    raw = medias(("1", 1000, "future event"), ("2", 2000, "future event"))
+
+    def weekly(caption, posted_at, club_name, college_name):
+        details = fake_extractor(caption, posted_at, club_name, college_name)
+        if posted_at.minute == 33:  # the second post
+            details["start_time"] = FUTURE + timedelta(days=7)
+        return details
+
+    result = process_club_posts(club, raw, 5, extractor=weekly, now=NOW)
+
+    assert result["duplicate_events"] == 0 and Event.query.count() == 2
+
+
+def test_events_table_refuses_a_duplicate_directly(club):
+    # Even code that skips find_duplicate() can't store a second copy.
+    def add(post_id, title, start):
+        db.session.add(Event(
+            club_id=club.id, college_id=club.college_id, post_id=post_id, title=title, start_time=start,
+        ))
+
+    add("1", "Intro to Git", FUTURE)
+    db.session.commit()
+    add("2", "intro to git", FUTURE.replace(hour=9))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+    db.session.rollback()
+
+    add("3", "Intro to Git", FUTURE + timedelta(days=1))  # next day: allowed
+    db.session.commit()
+    assert Event.query.count() == 2
+
+
+def test_upcoming_returns_one_colleges_events_from_today_in_order(club):
+    today = datetime(2026, 10, 27).date()
+
+    def add(post_id, start, college_id=None):
+        db.session.add(Event(
+            club_id=club.id, college_id=college_id or club.college_id, post_id=post_id,
+            title=post_id, start_time=start,
+        ))
+
+    add("later", datetime(2026, 11, 5, 18, 0))
+    add("date-only-today", datetime(2026, 10, 27, 0, 0))
+    add("tonight", datetime(2026, 10, 27, 19, 0))
+    add("yesterday", datetime(2026, 10, 26, 18, 0))
+    add("too-far", datetime(2026, 11, 20, 18, 0))
+    db.session.commit()
+
+    titles = [e.title for e in Event.upcoming(club.college_id, today, until=datetime(2026, 11, 5).date())]
+    assert titles == ["date-only-today", "tonight", "later"]
+    assert Event.upcoming(club.college_id + 999, today).count() == 0

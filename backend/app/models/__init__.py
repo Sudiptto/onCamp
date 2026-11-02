@@ -5,6 +5,7 @@ from .archived_club import ArchivedClub
 from .event import Event
 from .archived_event import ArchivedEvent
 from .user import User
+from .saved_event import SavedEvent
 from .club_post import ClubPostCheckpoint
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "Event",
     "ArchivedEvent",
     "User",
+    "SavedEvent",
     "ClubPostCheckpoint",
 ]
 
