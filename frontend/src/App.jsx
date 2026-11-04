@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { fetchClubOptions, fetchEvents } from './api'
 import AccountMenu from './components/auth/AccountMenu'
 import AuthForm from './components/auth/AuthForm'
 import { useAuth } from './context/AuthContext'
+import { listSaved, toggleSaved } from './savedEvents'
 import {
   closestDate,
   formatLongDate,
   formatTimeRange,
   monthLabel,
   monthMatrix,
+  relativeDayLabel,
   toISODate,
 } from './dates'
 
@@ -47,7 +49,7 @@ function ClubMark({ name, src }) {
   )
 }
 
-function EventCard({ event, selected, onSelect }) {
+function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
   return (
     <article className={selected ? 'event-card is-selected' : 'event-card'}>
       <button type="button" className="event-select" onClick={() => onSelect(event.date)}>
@@ -55,6 +57,7 @@ function EventCard({ event, selected, onSelect }) {
         <span>
           <span className="event-kicker">
             {formatLongDate(event.date)}
+            <span className="when-badge">{relativeDayLabel(event.date, today)}</span>
             {event.free_food && <span className="food-badge">Free food</span>}
           </span>
           <strong>{event.event_name}</strong>
@@ -74,6 +77,14 @@ function EventCard({ event, selected, onSelect }) {
             Sign up
           </a>
         )}
+        <button
+          type="button"
+          className={saved ? 'save-button is-saved' : 'save-button'}
+          aria-pressed={saved}
+          onClick={() => onToggleSave(event)}
+        >
+          {saved ? 'Saved' : 'Save'}
+        </button>
       </div>
     </article>
   )
@@ -94,6 +105,10 @@ export default function App() {
   })
   const [selected, setSelected] = useState(today)
   const [foodOnly, setFoodOnly] = useState(false)
+  const [savedEvents, setSavedEvents] = useState([])
+  const [savedOnly, setSavedOnly] = useState(false)
+  const savedOnlyRef = useRef(false)
+  savedOnlyRef.current = savedOnly
   const { user, authLoading } = useAuth()
   const [authFormOpen, setAuthFormOpen] = useState(false)
   const [authPrompt, setAuthPrompt] = useState('')
@@ -103,10 +118,24 @@ export default function App() {
     setAuthFormOpen(true)
   }
 
-  // archive needs an account, so go back to Upcoming if they sign out there
+  // Archive and Saved both need an account. Drop back to the public calendar on sign-out.
   useEffect(() => {
-    if (!authLoading && !user && mode === 'archive') setMode('upcoming')
+    if (authLoading || user) return
+    setSavedOnly(false)
+    setSavedEvents([])
+    if (mode === 'archive') setMode('upcoming')
   }, [authLoading, user, mode])
+
+  useEffect(() => {
+    if (!user) return undefined
+    let cancelled = false
+    listSaved(user.id).then((events) => {
+      if (!cancelled) setSavedEvents(events)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   useEffect(() => {
     if (authLoading) return undefined
@@ -130,6 +159,7 @@ export default function App() {
       .then((data) => {
         if (cancelled) return
         setPayload(data)
+        if (savedOnlyRef.current) return
         const focus = closestDate(data.events, today)
         const [year, month] = focus.split('-').map(Number)
         setCursor({ year, month: month - 1 })
@@ -150,7 +180,16 @@ export default function App() {
   }, [mode, range, clubId, today, authLoading, user?.id])
 
   const allEvents = payload?.events ?? []
-  const events = foodOnly ? allEvents.filter((event) => event.free_food) : allEvents
+  const savedIds = useMemo(
+    () => new Set(savedEvents.map((event) => event.event_id)),
+    [savedEvents],
+  )
+  const sourceEvents = savedOnly ? savedEvents : allEvents
+  const events = sourceEvents.filter((event) => {
+    if (foodOnly && !event.free_food) return false
+    if (savedOnly && clubId && event.club_id !== clubId) return false
+    return true
+  })
   const foodCount = allEvents.filter((event) => event.free_food).length
   const byDate = useMemo(() => {
     const grouped = new Map()
@@ -161,6 +200,10 @@ export default function App() {
     }
     return grouped
   }, [events])
+  const scheduleDays = useMemo(
+    () => [...byDate.keys()].sort().map((date) => ({ date, events: byDate.get(date) })),
+    [byDate],
+  )
 
   const weeks = monthMatrix(cursor.year, cursor.month)
 
@@ -168,6 +211,30 @@ export default function App() {
     const [year, month] = iso.split('-').map(Number)
     setSelected(iso)
     setCursor({ year, month: month - 1 })
+  }
+
+  function toggleSavedView() {
+    if (!user) {
+      openSignIn('Sign in with Google to save events and see them here.')
+      return
+    }
+    const next = !savedOnly
+    setSavedOnly(next)
+    if (!next) return
+    const visible = savedEvents.filter((event) => {
+      if (foodOnly && !event.free_food) return false
+      if (clubId && event.club_id !== clubId) return false
+      return true
+    })
+    if (visible.length) focusDate(closestDate(visible, today))
+  }
+
+  async function onToggleSave(event) {
+    if (!user) {
+      openSignIn('Sign in with Google to save this event.')
+      return
+    }
+    setSavedEvents(await toggleSaved(user.id, event))
   }
 
   function toggleFood() {
@@ -183,7 +250,11 @@ export default function App() {
     setCursor({ year: next.getFullYear(), month: next.getMonth() })
   }
 
-  const viewLabel = mode === 'archive' ? 'Past semester' : RANGES.find((item) => item.id === range)?.label
+  const viewLabel = savedOnly
+    ? 'Saved'
+    : mode === 'archive'
+      ? 'Past semester'
+      : RANGES.find((item) => item.id === range)?.label
 
   return (
     <div className="page">
@@ -218,6 +289,9 @@ export default function App() {
             <button type="button" aria-pressed={foodOnly} onClick={toggleFood}>
               Free food
             </button>
+            <button type="button" aria-pressed={savedOnly} onClick={toggleSavedView}>
+              Saved{user && savedEvents.length ? ` ${savedEvents.length}` : ''}
+            </button>
           </div>
 
           {mode === 'upcoming' && (
@@ -251,7 +325,7 @@ export default function App() {
         <p className="status-line">
           {loading && 'Loading events…'}
           {!loading && error && error}
-          {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}`}
+          {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${!savedOnly && foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}${user && savedEvents.length && !savedOnly ? ` · ${savedEvents.length} saved` : ''}`}
         </p>
 
         <div className="layout">
@@ -282,6 +356,7 @@ export default function App() {
                     const iso = toISODate(date)
                     const dayEvents = byDate.get(iso) ?? []
                     const hasFood = dayEvents.some((event) => event.free_food)
+                    const hasSaved = dayEvents.some((event) => savedIds.has(event.event_id))
                     const outside = date.getMonth() !== cursor.month
                     return (
                       <button
@@ -293,9 +368,10 @@ export default function App() {
                           iso === today ? 'is-today' : '',
                           iso === selected ? 'is-selected' : '',
                           hasFood ? 'has-food' : '',
+                          hasSaved ? 'has-saved' : '',
                         ].filter(Boolean).join(' ')}
                         aria-pressed={iso === selected}
-                        aria-label={`${formatLongDate(iso)}, ${dayEvents.length} events${hasFood ? ', free food' : ''}`}
+                        aria-label={`${formatLongDate(iso)}, ${dayEvents.length} events${hasFood ? ', free food' : ''}${hasSaved ? ', saved' : ''}`}
                         onClick={() => focusDate(iso)}
                       >
                         <span className="day-top">
@@ -323,8 +399,8 @@ export default function App() {
           </section>
 
           <section className="schedule" aria-label="Events in this view">
-            <h2>{mode === 'archive' ? 'Archive' : 'Schedule'}</h2>
-            {payload?.limited && (
+            <h2>{savedOnly ? 'Saved' : mode === 'archive' ? 'Archive' : 'Schedule'}</h2>
+            {payload?.limited && !savedOnly && (
               <div className="unlock-banner" role="note">
                 <span>
                   {payload.locked_count} more event{payload.locked_count === 1 ? '' : 's'} later on.
@@ -335,16 +411,30 @@ export default function App() {
               </div>
             )}
             {!loading && !error && events.length === 0 && (
-              <p className="empty">{foodOnly ? 'No free food in this view.' : 'No events in this view.'}</p>
+              <p className="empty">
+                {savedOnly
+                  ? 'No saved events yet.'
+                  : foodOnly
+                    ? 'No free food in this view.'
+                    : 'No events in this view.'}
+              </p>
             )}
             <div className="schedule-list">
-              {events.map((event) => (
-                <EventCard
-                  key={event.event_id}
-                  event={event}
-                  selected={event.date === selected}
-                  onSelect={focusDate}
-                />
+              {scheduleDays.map((day) => (
+                <section key={day.date} className="schedule-day" aria-label={formatLongDate(day.date)}>
+                  <h3>{formatLongDate(day.date)}</h3>
+                  {day.events.map((event) => (
+                    <EventCard
+                      key={event.event_id}
+                      event={event}
+                      today={today}
+                      selected={event.date === selected}
+                      saved={savedIds.has(event.event_id)}
+                      onSelect={focusDate}
+                      onToggleSave={onToggleSave}
+                    />
+                  ))}
+                </section>
               ))}
             </div>
           </section>
