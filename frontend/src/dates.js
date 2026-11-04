@@ -34,6 +34,23 @@ export function monthLabel(year, month) {
   })
 }
 
+export function daysUntil(iso, today) {
+  const [year, month, day] = iso.split('-').map(Number)
+  const [todayYear, todayMonth, todayDay] = today.split('-').map(Number)
+  const eventDay = Date.UTC(year, month - 1, day)
+  const todayUtc = Date.UTC(todayYear, todayMonth - 1, todayDay)
+  return Math.round((eventDay - todayUtc) / 86400000)
+}
+
+export function relativeDayLabel(iso, today) {
+  const days = daysUntil(iso, today)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days === -1) return 'Yesterday'
+  if (days > 1) return `In ${days} days`
+  return `${Math.abs(days)} days ago`
+}
+
 export function formatLongDate(iso) {
   const [year, month, day] = iso.split('-').map(Number)
   return new Date(year, month - 1, day).toLocaleDateString('en-US', {
