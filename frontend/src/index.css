@@ -107,6 +107,11 @@ h1 {
   gap: 6px;
 }
 
+.range-switch {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
 .mode-switch button,
 .range-switch button,
 .today-button,
@@ -192,13 +197,18 @@ h1 {
   padding: 0;
   font-size: 1.3rem;
   line-height: 1;
+  flex: 0 0 auto;
 }
 
-.today-button {
+.calendar-nav .today-button {
   width: auto;
-  height: auto;
+  height: 36px;
   margin-left: auto;
-  font-size: 0.95rem;
+  padding: 0 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .weekday-row,
@@ -283,6 +293,18 @@ h1 {
   padding: 1px 6px;
 }
 
+.when-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: #efe2f4;
+  color: var(--purple-deep);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+}
+
 .day-number {
   display: inline-grid;
   place-items: center;
@@ -295,6 +317,14 @@ h1 {
 .day.is-selected .day-number {
   background: var(--purple);
   color: #fffaf2;
+}
+
+.day.has-saved .day-number {
+  box-shadow: inset 0 -2px 0 var(--purple);
+}
+
+.day.is-today.has-saved .day-number {
+  box-shadow: inset 0 0 0 2px var(--gold), inset 0 -2px 0 var(--purple);
 }
 
 .day-dot {
@@ -345,10 +375,24 @@ h1 {
 
 .schedule-list {
   display: grid;
-  gap: 10px;
+  gap: 16px;
   max-height: 720px;
   overflow: auto;
   padding-right: 4px;
+}
+
+.schedule-day {
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-day h3 {
+  margin: 0;
+  color: var(--purple);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .event-card {
@@ -416,10 +460,27 @@ h1 {
 .event-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   padding: 0 12px 12px 64px;
   font-weight: 700;
   font-size: 0.92rem;
+}
+
+.save-button {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--purple);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+}
+
+.save-button.is-saved {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fffaf2;
 }
 
 .empty {
@@ -428,6 +489,11 @@ h1 {
 }
 
 @media (max-width: 860px) {
+  .range-switch {
+    padding-left: 0;
+    border-left: 0;
+  }
+
   .club-filter {
     margin-left: 0;
     width: 100%;
