@@ -67,6 +67,11 @@ npm run dev
 
 Vite runs at `http://localhost:5173`.
 
+The calendar reads events from the backend database through the `/api` proxy.
+To populate that database, see the manual discovery, activity-check, and post
+extraction sequence in [Scheduled Jobs](backend/jobs/README.md). Until a
+scheduler is configured, those jobs do not run automatically.
+
 ## Environment variables
 
 All secrets live in `.env` at the project root. Never hardcode keys in source files.
@@ -85,6 +90,9 @@ All secrets live in `.env` at the project root. Never hardcode keys in source fi
 | `DEEPSEEK_MODEL` | Cheap model used by the separate AI filter, defaults to `deepseek-chat` |
 | `SEED_ACCOUNT` | Instagram handle to start discovery from (`hunterusg`) |
 | `APP_ENV` | Runtime environment (`development`, `production`) |
+
+The backend loads the root `.env` before reading its database and other
+configuration. If `DATABASE_URL` is unset, it uses the local SQLite database.
 
 ## Branch convention
 

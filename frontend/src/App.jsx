@@ -62,16 +62,18 @@ function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
           </span>
           <strong>{event.event_name}</strong>
           <span className="event-when">{formatTimeRange(event.start_time, event.end_time)}</span>
-          <span className="event-where">{event.location}</span>
+          <span className="event-where">{event.location || 'Location not specified'}</span>
         </span>
       </button>
       <div className="event-links">
         <a href={event.club_link} target="_blank" rel="noreferrer">
           {event.club_name}
         </a>
-        <a href={event.post_link} target="_blank" rel="noreferrer">
-          Post
-        </a>
+        {event.post_link && (
+          <a href={event.post_link} target="_blank" rel="noreferrer">
+            Post
+          </a>
+        )}
         {event.event_link && (
           <a href={event.event_link} target="_blank" rel="noreferrer">
             Sign up
@@ -96,6 +98,7 @@ export default function App() {
   const [range, setRange] = useState('2w')
   const [clubId, setClubId] = useState('')
   const [clubs, setClubs] = useState([])
+  const [clubsError, setClubsError] = useState('')
   const [payload, setPayload] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -140,11 +143,17 @@ export default function App() {
   useEffect(() => {
     if (authLoading) return undefined
     let cancelled = false
-    fetchClubOptions()
+    setClubsError('')
+    fetchClubOptions({ includeArchive: Boolean(user) })
       .then((list) => {
         if (!cancelled) setClubs(list)
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (!cancelled) {
+          setClubs([])
+          setClubsError(`Could not load club filters: ${err.message}`)
+        }
+      })
     return () => {
       cancelled = true
     }
@@ -327,6 +336,7 @@ export default function App() {
           {!loading && error && error}
           {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${!savedOnly && foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}${user && savedEvents.length && !savedOnly ? ` · ${savedEvents.length} saved` : ''}`}
         </p>
+        {clubsError && <p className="status-line" role="alert">{clubsError}</p>}
 
         <div className="layout">
           <section className="calendar" aria-label="Month calendar">

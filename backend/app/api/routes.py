@@ -1,12 +1,13 @@
 import os
-from datetime import date, timedelta
+from datetime import timedelta
 
 from flask import current_app, jsonify, request
 
 from app.api import api_bp
 from app.api.auth_helpers import current_user, login_required
-from app.api.mock_events import RANGES, get_mock_events
 from app.services import DiscoveryService
+from app.services.calendar_events import RANGES, get_calendar_events
+from app.services.event_archive import campus_now
 
 
 @api_bp.route("/health", methods=["GET"])
@@ -33,11 +34,10 @@ def _events_response(events, range_key):
     # All the events routes go through here so the sign-in limit is in one spot.
     # Logged out people only get the next ANON_EVENT_DAYS days. We send a count of
     # what was hidden so the page can ask them to sign in, but not the events themselves.
-    # TODO: when events come from the database, put this cutoff in the query too.
     locked = 0
     if current_user() is None:
         days = current_app.config.get("ANON_EVENT_DAYS", 7)
-        cutoff = (date.today() + timedelta(days=days)).isoformat()
+        cutoff = (campus_now().date() + timedelta(days=days)).isoformat()
         visible = [event for event in events if event["date"] <= cutoff]
         locked = len(events) - len(visible)
         events = visible
@@ -57,27 +57,40 @@ def _events_response(events, range_key):
 
 @api_bp.route("/events", methods=["GET"])
 def get_all_upcoming_events():
-    # FILTER VIA DATABASE
-    # Later: SELECT upcoming events (start >= now) from the DB, ordered by start.
-    return _events_response(get_mock_events("all"), "all")
+    return _events_response(get_calendar_events(), "all")
+
+
+def _club_id():
+    value = request.args.get("club_id")
+    if value is None or value == "":
+        return None
+    if not value.isascii() or not value.isdecimal() or len(value) > 10:
+        raise ValueError("club_id must be a valid positive integer")
+    if not 1 <= int(value) <= 2147483647:
+        raise ValueError("club_id must be a valid positive integer")
+    return int(value)
 
 
 @api_bp.route("/events/filter", methods=["GET"])
 def filter_events():
-    # FILTER VIA DATABASE
-    # Later: add start <= now + window and club_id to the upcoming-events query.
     range_key = request.args.get("range", "2w")
     if range_key not in RANGES:
         return jsonify({"error": f"range must be one of {list(RANGES)}"}), 400
 
-    events = get_mock_events(range_key, request.args.get("club_id"))
+    try:
+        club_id = _club_id()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    events = get_calendar_events(range_key, club_id)
     return _events_response(events, range_key)
 
 
 @api_bp.route("/events/archive", methods=["GET"])
 @login_required
 def get_archived_events():
-    # FILTER VIA DATABASE
-    # Later: SELECT all events (past + upcoming) since the start of last semester.
-    events = get_mock_events("all", request.args.get("club_id"), include_past=True)
+    try:
+        club_id = _club_id()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    events = get_calendar_events("all", club_id, include_past=True)
     return _events_response(events, "archive")

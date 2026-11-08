@@ -42,16 +42,13 @@ export function fetchEvents({ mode, range, clubId }) {
   return getJson(`/api/events/filter?${params.toString()}`)
 }
 
-export async function fetchClubOptions() {
-  // archive needs a login, so logged out people only get clubs from upcoming events
-  const [upcoming, archive] = await Promise.allSettled([
+export async function fetchClubOptions({ includeArchive = false } = {}) {
+  const [upcoming, archive] = await Promise.all([
     getJson('/api/events'),
-    getJson('/api/events/archive'),
+    includeArchive ? getJson('/api/events/archive') : Promise.resolve({ events: [] }),
   ])
-  if (upcoming.status === 'rejected') throw upcoming.reason
-  const archiveEvents = archive.status === 'fulfilled' ? archive.value.events : []
   const clubs = new Map()
-  for (const event of [...upcoming.value.events, ...archiveEvents]) {
+  for (const event of [...upcoming.events, ...archive.events]) {
     clubs.set(event.club_id, event.club_name)
   }
   return [...clubs.entries()]

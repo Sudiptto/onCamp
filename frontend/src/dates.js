@@ -68,7 +68,8 @@ export function formatTime(value) {
 }
 
 export function formatTimeRange(start, end) {
-  return `${formatTime(start)} – ${formatTime(end)}`
+  if (!start) return 'Time not specified'
+  return end ? `${formatTime(start)} – ${formatTime(end)}` : formatTime(start)
 }
 
 export function closestDate(events, today) {

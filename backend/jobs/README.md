@@ -37,7 +37,10 @@ The future scheduler should call `run()` and replace its file output with a data
 - 91 days to 2 years old, or no posts: `inactive`, recheck every 180 days (about once a semester)
 - over 2 years old: `archived`; the club moves to the `archived_clubs` table (its events are deleted) and `sync_clubs.py` will not re-add it
 
-Output is `club_activity.json` with `active` and `inactive` lists (post id, post code, last post date, days since, next check). Each record is shaped as one future DB row; the DB write would replace the file write in `pipeline.run()`. The full pipeline (discovery, AI filter, activity check) is meant to run once per semester.
+The activity pipeline writes a JSON result. `run_due_activity_checks.py` selects
+due database clubs and persists their results in `club_activity`. Clubs without
+an Instagram user ID cannot be checked and are counted separately.
+Discovery and AI classification are intended to run about once per semester.
 
 ```powershell
 cd backend
@@ -59,3 +62,38 @@ cd backend
 python run_post_extraction.py --due --college hunter --limit 5
 python run_post_extraction.py --username hunter_bsa --count 3
 ```
+
+## Manual end-to-end sequence
+
+No Azure Function, timer, cron expression, run time, or timezone for a scheduled
+trigger is configured yet. The intervals above only determine which clubs are
+due **when the commands are run**. All active clubs use the same two-day
+interval; there is no separate daily tier for the most active clubs. The
+180-day interval is approximate, not tied to academic semester dates. Archived
+clubs are not automatically rechecked or restored.
+
+With the root `.env` configured and dependencies installed, run the following
+from `backend/`. API calls to Hiker and DeepSeek can incur costs:
+
+```powershell
+# Once per database, or when college configuration changes.
+python seed_colleges.py
+
+# Discovery and AI classification; explicitly select the output used by sync_clubs.
+python run_full_pipeline.py --college hunter --output-dir data
+python sync_clubs.py --college hunter --input data/clubs.json
+
+# Check every due database club and update activity status and next-check times.
+python run_due_activity_checks.py --college hunter --all
+
+# Fetch posts from due active clubs, extract events, and archive finished events.
+python run_post_extraction.py --due --college hunter
+```
+
+Run the last two commands in that order on each manual refresh. Without `--all`,
+the activity check only processes five clubs by default. Post extraction reads
+the newest three posts per club by default; `--count` can increase this up to
+12, so a busy club may have older posts missed between scans. Failed scans need
+attention and a retry. The event API and calendar show only events successfully
+stored in the same configured database; an empty database gives an empty
+calendar. See [Events API](../docs/EVENTS_API.md).
