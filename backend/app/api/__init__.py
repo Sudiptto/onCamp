@@ -5,3 +5,5 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 from . import routes  # noqa: E402,F401
 
 from . import auth  # noqa: E402,F401
+
+from . import saved_events  # noqa: E402,F401

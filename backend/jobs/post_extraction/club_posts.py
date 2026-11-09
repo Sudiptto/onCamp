@@ -11,6 +11,8 @@ How the schedule fits together (this is the hard part of the cron job):
    select_new_posts() drops anything at or before it.
 4. Events whose date has already passed when the job runs are never added, and
    archive_past_events() moves finished events to `archived_events`.
+5. A reminder post for an event we already have (same club, title and day) is skipped,
+   matching the uq_events_club_title_day rule on the events table.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -122,7 +124,7 @@ def process_club_posts(
     new_posts = select_new_posts(recent, checkpoint.last_post_at if checkpoint else None, seen_ids)
 
     events: list[Event] = []
-    not_events = past_events = undated_events = 0
+    not_events = past_events = undated_events = duplicate_events = 0
     error = None
     for post in new_posts:
         posted_at = _naive_utc(post["taken_at"])
@@ -138,6 +140,10 @@ def process_club_posts(
             undated_events += 1  # without a date we can't tell if it's upcoming
         elif event_has_passed(details["start_time"], details["end_time"], local_now):
             past_events += 1
+        elif Event.find_duplicate(club.id, details["title"], details["start_time"]):
+            # A reminder or repost of an event we already have (same club, title and day).
+            # The events table also refuses these, so skip it here instead of failing the run.
+            duplicate_events += 1
         else:
             event = Event(
                 club_id=club.id,
@@ -166,10 +172,11 @@ def process_club_posts(
     return {
         "fetched": len(recent),
         "already_checked": len(recent) - len(new_posts),
-        "processed": len(events) + not_events + past_events + undated_events,
+        "processed": len(events) + not_events + past_events + undated_events + duplicate_events,
         "events": events,
         "not_events": not_events,
         "past_events": past_events,
         "undated_events": undated_events,
+        "duplicate_events": duplicate_events,
         "error": error,
     }

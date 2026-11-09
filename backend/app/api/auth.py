@@ -1,4 +1,3 @@
-import secrets
 from datetime import datetime, timezone
 
 from flask import current_app, jsonify, request, session
@@ -9,27 +8,16 @@ from google.oauth2 import id_token
 from sqlalchemy.exc import IntegrityError
 
 from app.api import api_bp
-from app.api.auth_helpers import current_user
+from app.api.auth_helpers import (
+    csrf_error as _csrf_error,
+    current_user,
+    issue_csrf_token as _issue_csrf_token,
+    valid_csrf_token as _valid_csrf_token,
+)
 from app.extensions import db, limiter
 from app.models import User
 
 GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
-
-
-def _issue_csrf_token():
-    token = secrets.token_urlsafe(32)
-    session["csrf_token"] = token
-    return token
-
-
-def _valid_csrf_token():
-    expected = session.get("csrf_token")
-    supplied = request.headers.get("X-CSRF-Token", "")
-    return bool(expected and supplied and secrets.compare_digest(expected, supplied))
-
-
-def _csrf_error():
-    return jsonify({"error": "Your session expired. Refresh the page and try again."}), 403
 
 
 @api_bp.get("/auth/csrf")
