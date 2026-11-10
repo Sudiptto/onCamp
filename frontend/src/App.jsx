@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchClubOptions, fetchEvents } from './api'
 import AccountMenu from './components/auth/AccountMenu'
 import AuthForm from './components/auth/AuthForm'
+import { downloadIcs, googleCalendarUrl } from './calendar'
 import { useAuth } from './context/AuthContext'
 import { listSaved, toggleSaved } from './savedEvents'
 import {
@@ -79,6 +80,12 @@ function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
             Sign up
           </a>
         )}
+        <a href={googleCalendarUrl(event)} target="_blank" rel="noreferrer">
+          Google Calendar
+        </a>
+        <button type="button" className="link-button" onClick={() => downloadIcs(event)}>
+          .ics
+        </button>
         <button
           type="button"
           className={saved ? 'save-button is-saved' : 'save-button'}
