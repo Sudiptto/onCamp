@@ -26,8 +26,15 @@ class SavedEvent(db.Model):
     event = db.relationship("Event", back_populates="saves")
 
     def to_dict(self):
+        event = self.event
+        calendar = None
+        if event is not None and event.club is not None and event.start_time is not None:
+            # Imported here so loading models does not pull the calendar service in first.
+            from app.services.calendar_events import _format_event
+            calendar = _format_event(event, event.club)
         return {
             "event_id": self.event_id,
             "saved_at": self.created_at.isoformat() if self.created_at else None,
-            "event": self.event.to_dict() if self.event else None,
+            "event": event.to_dict() if event else None,
+            "calendar": calendar,
         }

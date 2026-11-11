@@ -87,12 +87,14 @@ async function ensureCsrfToken() {
   return csrfToken
 }
 
-async function postAuth(path, values = {}) {
+async function sendChangingRequest(path, options) {
   const send = async () =>
     authRequest(path, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': await ensureCsrfToken() },
-      body: JSON.stringify(values),
+      ...options,
+      headers: {
+        'X-CSRF-Token': await ensureCsrfToken(),
+        ...(options.headers || {}),
+      },
     })
   try {
     return await send()
@@ -104,6 +106,28 @@ async function postAuth(path, values = {}) {
     }
     throw error
   }
+}
+
+async function postAuth(path, values = {}) {
+  return sendChangingRequest(path, {
+    method: 'POST',
+    body: JSON.stringify(values),
+  })
+}
+
+export function listSavedEvents() {
+  return authRequest('/api/saved-events')
+}
+
+export function saveEvent(eventId) {
+  return sendChangingRequest('/api/saved-events', {
+    method: 'POST',
+    body: JSON.stringify({ event_id: eventId }),
+  })
+}
+
+export function unsaveEvent(eventId) {
+  return sendChangingRequest(`/api/saved-events/${eventId}`, { method: 'DELETE' })
 }
 
 export async function getCurrentUser() {

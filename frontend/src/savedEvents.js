@@ -1,32 +1,20 @@
-function storageKey(userId) {
-  return `oncamp.saved-events:${userId}`
-}
+import { ApiError, listSavedEvents, saveEvent, unsaveEvent } from './api.js'
 
-function readSaved(userId) {
+export async function listSaved() {
   try {
-    const raw = localStorage.getItem(storageKey(userId))
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
+    const body = await listSavedEvents()
+    return (body.saved_events ?? []).map((row) => row.calendar).filter(Boolean)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return []
+    throw error
   }
 }
 
-function writeSaved(userId, events) {
-  localStorage.setItem(storageKey(userId), JSON.stringify(events))
-  return events
-}
-
-export async function listSaved(userId) {
-  // TODO: GET /api/saved-events once that route exists.
-  return readSaved(userId)
-}
-
-export async function toggleSaved(userId, event) {
-  // TODO: POST /api/saved-events and DELETE /api/saved-events/:eventId
-  const current = readSaved(userId)
-  const alreadySaved = current.some((item) => item.event_id === event.event_id)
-  const next = alreadySaved
-    ? current.filter((item) => item.event_id !== event.event_id)
-    : [...current, event]
-  return writeSaved(userId, next)
+export async function toggleSaved(event, saved) {
+  if (!Number.isInteger(event.id)) {
+    throw new Error('This event can no longer be saved.')
+  }
+  if (saved) await unsaveEvent(event.id)
+  else await saveEvent(event.id)
+  return listSaved()
 }

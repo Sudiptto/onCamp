@@ -67,6 +67,7 @@ def test_signed_out_visitors_receive_database_events_and_week_limit(client, even
     assert body["locked_count"] == 2
     event = body["events"][1]
     assert event == {
+        "id": Event.query.filter_by(post_id="one").one().id,
         "event_id": "post:one", "club_id": str(events["coding"]), "club_name": "Coding Club",
         "club_link": "https://www.instagram.com/coding/", "club_pfp": None, "event_name": "one",
         "event_link": None, "free_food": True, "date": "2026-10-28", "start_time": "18:00",
@@ -131,6 +132,9 @@ def test_archive_requires_login_and_includes_live_and_archived_events(client, mo
     ids = {event["event_id"] for event in body["events"]}
     assert ids == {"post:old-archived", "post:old-live", "post:finished", "post:ongoing",
                    "post:one", "post:two", "post:three", "post:four"}
+    by_id = {event["event_id"]: event["id"] for event in body["events"]}
+    assert by_id["post:old-archived"] is None
+    assert isinstance(by_id["post:one"], int)
     body = client.get(f"/api/events/archive?club_id={events['dance']}").get_json()
     assert {event["event_id"] for event in body["events"]} == {
         "post:old-archived", "post:two", "post:four",
@@ -141,7 +145,9 @@ def test_event_id_survives_archiving(client, monkeypatch):
     sign_in(client, monkeypatch)
     assert "post:old-live" in {e["event_id"] for e in client.get("/api/events/archive").get_json()["events"]}
     archive_past_events(UTC_NOW)
-    assert "post:old-live" in {e["event_id"] for e in client.get("/api/events/archive").get_json()["events"]}
+    archived = client.get("/api/events/archive").get_json()["events"]
+    old = next(event for event in archived if event["event_id"] == "post:old-live")
+    assert old["id"] is None
 
 
 def test_extracted_event_reaches_calendar_api(client, events):

@@ -14,7 +14,10 @@ ARCHIVE_DAYS = 120
 def _format_event(event, club):
     # Post IDs survive moving an event from the live table to the archive.
     event_id = f"post:{event.post_id}" if event.post_id else f"{event.__tablename__}:{event.id}"
+    # Saved events point at the upcoming `events` row. Archived rows have their own ids.
+    save_id = event.id if event.__tablename__ == "events" else None
     return {
+        "id": save_id,
         "event_id": event_id,
         "club_id": str(club.id),
         "club_name": club.name,

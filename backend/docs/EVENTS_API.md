@@ -28,6 +28,7 @@ from upcoming results even if the archive job has not yet run.
   "range": "2w",
   "count": 1,
   "events": [{
+    "id": 12,
     "event_id": "post:123456",
     "club_id": "1",
     "club_name": "Hunter Coding Club",
@@ -48,9 +49,11 @@ from upcoming results even if the archive job has not yet run.
 }
 ```
 
-`club_id` and `event_id` are strings for the frontend. Instagram post IDs
-keep event identifiers stable when events move to the archive. For a manually
-created event without a post ID, its identifier is based on its table and row
-ID and can change on archival. `club_pfp`, `event_link`, `end_time`, `location`,
+`id` is the integer primary key of an upcoming `events` row. Save and unsave
+send that number to `/api/saved-events`. It is `null` once the event has moved
+to the archive. `club_id` and `event_id` are strings for the frontend.
+Instagram post IDs keep `event_id` stable when events move to the archive. For
+a manually created event without a post ID, `event_id` is based on its table
+and row ID and can change on archival. `club_pfp`, `event_link`, `end_time`, `location`,
 and `post_link` can be `null`. `limited` and `locked_count` report events
 hidden by the signed-out access rule.
