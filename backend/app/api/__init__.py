@@ -7,3 +7,4 @@ from . import routes  # noqa: E402,F401
 from . import auth  # noqa: E402,F401
 
 from . import saved_events  # noqa: E402,F401
+from . import stats  # noqa: E402,F401
