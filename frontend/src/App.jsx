@@ -86,14 +86,16 @@ function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
         <button type="button" className="link-button" onClick={() => downloadIcs(event)}>
           .ics
         </button>
-        <button
-          type="button"
-          className={saved ? 'save-button is-saved' : 'save-button'}
-          aria-pressed={saved}
-          onClick={() => onToggleSave(event)}
-        >
-          {saved ? 'Saved' : 'Save'}
-        </button>
+        {event.id != null && (
+          <button
+            type="button"
+            className={saved ? 'save-button is-saved' : 'save-button'}
+            aria-pressed={saved}
+            onClick={() => onToggleSave(event)}
+          >
+            {saved ? 'Saved' : 'Save'}
+          </button>
+        )}
       </div>
     </article>
   )
@@ -119,6 +121,7 @@ export default function App() {
   const [foodOnly, setFoodOnly] = useState(false)
   const [savedEvents, setSavedEvents] = useState([])
   const [savedOnly, setSavedOnly] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const savedOnlyRef = useRef(false)
   savedOnlyRef.current = savedOnly
   const { user, authLoading } = useAuth()
@@ -139,15 +142,20 @@ export default function App() {
     if (authLoading || user) return
     setSavedOnly(false)
     setSavedEvents([])
+    setSaveError('')
     if (mode === 'archive') setMode('upcoming')
   }, [authLoading, user, mode])
 
   useEffect(() => {
     if (!user) return undefined
     let cancelled = false
-    listSaved(user.id).then((events) => {
-      if (!cancelled) setSavedEvents(events)
-    })
+    listSaved()
+      .then((events) => {
+        if (!cancelled) setSavedEvents(events)
+      })
+      .catch((err) => {
+        if (!cancelled) setSaveError(err.message)
+      })
     return () => {
       cancelled = true
     }
@@ -256,7 +264,13 @@ export default function App() {
       openSignIn('Sign in with Google to save this event.')
       return
     }
-    setSavedEvents(await toggleSaved(user.id, event))
+    if (event.id == null) return
+    setSaveError('')
+    try {
+      setSavedEvents(await toggleSaved(event, savedIds.has(event.event_id)))
+    } catch (err) {
+      setSaveError(err.message)
+    }
   }
 
   function toggleFood() {
@@ -442,6 +456,7 @@ export default function App() {
                 </button>
               </div>
             )}
+            {saveError && <p className="empty" role="alert">{saveError}</p>}
             {!loading && !error && events.length === 0 && (
               <p className="empty">
                 {savedOnly

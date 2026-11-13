@@ -73,6 +73,10 @@ def test_save_list_and_unsave(client, monkeypatch, events):
     body = first.get_json()
     assert body["created"] is True
     assert body["saved"]["event"]["title"] == "later"
+    assert body["saved"]["calendar"]["id"] == events["later"]
+    assert body["saved"]["calendar"]["event_id"] == "post:later"
+    assert body["saved"]["calendar"]["event_name"] == "later"
+    assert body["saved"]["calendar"]["club_name"] == "Hunter Coding Club"
     assert body["saved"]["saved_at"]
     assert first.headers["Cache-Control"] == "private, no-store"
 
