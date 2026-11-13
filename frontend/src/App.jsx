@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { fetchClubOptions, fetchEvents } from './api'
+import { fetchClubOptions, fetchEvents, fetchStats } from './api'
 import AccountMenu from './components/auth/AccountMenu'
 import AuthForm from './components/auth/AuthForm'
+import { downloadIcs, googleCalendarUrl } from './calendar'
 import { useAuth } from './context/AuthContext'
 import { listSaved, toggleSaved } from './savedEvents'
 import {
@@ -79,6 +80,12 @@ function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
             Sign up
           </a>
         )}
+        <a href={googleCalendarUrl(event)} target="_blank" rel="noreferrer">
+          Google Calendar
+        </a>
+        <button type="button" className="link-button" onClick={() => downloadIcs(event)}>
+          .ics
+        </button>
         {event.id != null && (
           <button
             type="button"
@@ -93,6 +100,8 @@ function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
     </article>
   )
 }
+
+const formatCount = (n) => (n >= 1000 ? `${n / 1000}K+` : `${n}+`)
 
 export default function App() {
   const today = toISODate(new Date())
@@ -116,6 +125,10 @@ export default function App() {
   const savedOnlyRef = useRef(false)
   savedOnlyRef.current = savedOnly
   const { user, authLoading } = useAuth()
+  const [stats, setStats] = useState(null)
+  useEffect(() => {
+    fetchStats().then(setStats).catch(() => {})  // the counter is optional, so ignore errors
+  }, [])
   const [authFormOpen, setAuthFormOpen] = useState(false)
   const [authPrompt, setAuthPrompt] = useState('')
 
@@ -286,6 +299,15 @@ export default function App() {
           <p className="eyebrow">Hunter College</p>
           <h1>onCamp</h1>
           <p className="lede">Club events, in one calendar.</p>
+          {stats?.clubs > 0 && (
+            <ul className="site-stats" aria-label="onCamp at a glance">
+              <li><strong>{stats.clubs}</strong> clubs</li>
+              <li><strong>{stats.upcoming_events}</strong> upcoming events</li>
+              {stats.users_milestone && (
+                <li><strong>{formatCount(stats.users_milestone)}</strong> people signed in</li>
+              )}
+            </ul>
+          )}
           <div className="masthead-account">
             <AccountMenu onSignIn={() => openSignIn()} />
           </div>

@@ -144,3 +144,5 @@ export function loginWithGoogle(credential) {
 export function logoutAccount() {
   return postAuth('/api/auth/logout')
 }
+
+export const fetchStats = () => getJson('/api/stats')
