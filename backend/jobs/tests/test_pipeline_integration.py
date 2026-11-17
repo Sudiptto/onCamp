@@ -57,3 +57,33 @@ def test_run_raises_when_seed_account_cannot_be_resolved(monkeypatch):
         assert "Could not resolve seed account" in str(exc)
     else:
         raise AssertionError("Expected HikerAPIError when the seed account has no pk/id")
+
+
+def test_run_uses_database_college_identity(monkeypatch):
+    class CollegeHikerClient(FakeHikerClient):
+        def resolve_user(self, username):
+            assert username == "baruch_sga"
+            return {"pk": "987"}
+
+        def get_following(self, user_id):
+            assert user_id == "987"
+            return [], {"pages_fetched": 0, "raw_accounts": 0}
+
+    monkeypatch.setattr(pipeline, "HikerClient", CollegeHikerClient)
+
+    result = pipeline.run(
+        college_key="baruch",
+        college_name="Baruch College",
+        seed_account="baruch_sga",
+    )
+
+    assert result["college_key"] == "baruch"
+    assert result["college_name"] == "Baruch College"
+    assert result["seed_account"] == "baruch_sga"
+
+
+def test_run_rejects_unknown_static_college_key():
+    import pytest
+
+    with pytest.raises(ValueError, match="Unsupported college key"):
+        pipeline.run(college_key="not-supported")

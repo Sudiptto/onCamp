@@ -12,10 +12,21 @@ def run(
     college_key: str | None = None,
     seed_account: str | None = None,
     output_dir: str | None = None,
+    college_name: str | None = None,
 ) -> dict[str, Any]:
     """Run one scheduler-safe college club discovery refresh."""
-    config = get_college_config(college_key)
-    target_account = seed_account or config["seed_account"]
+    if college_name is None:
+        config = get_college_config(college_key)
+        target_account = seed_account or config["seed_account"]
+        resolved_college_key = config["college_key"]
+        resolved_college_name = config["college_name"]
+    else:
+        if not college_key or not seed_account:
+            raise ValueError("college_key and seed_account are required with college_name.")
+        target_account = seed_account
+        resolved_college_key = college_key
+        resolved_college_name = college_name
+
     client = HikerClient()
 
     profile = client.resolve_user(target_account)
@@ -27,8 +38,8 @@ def run(
     public_accounts = extract_public_accounts(raw_accounts)
 
     result = {
-        "college_key": config["college_key"],
-        "college_name": config["college_name"],
+        "college_key": resolved_college_key,
+        "college_name": resolved_college_name,
         "seed_account": target_account,
         "seed_user_id": str(user_pk),
         "generated_at": datetime.now(timezone.utc).isoformat(),

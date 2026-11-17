@@ -70,7 +70,9 @@ Vite runs at `http://localhost:5173`.
 The calendar reads events from the backend database through the `/api` proxy.
 To populate that database, see the manual discovery, activity-check, and post
 extraction sequence in [Scheduled Jobs](backend/jobs/README.md). Until a
-scheduler is configured, those jobs do not run automatically.
+scheduler is deployed, activity checks and post extraction do not run automatically.
+Semester club discovery has an Azure Functions timer entrypoint; it runs only
+after that Function App is deployed and configured.
 
 ## Environment variables
 
@@ -107,12 +109,12 @@ feat/<name>   # feature branches off dev
 This repo intentionally starts with a Hunter-first pipeline while keeping the application model flexible enough to expand beyond Hunter.
 
 - Discovery logic is isolated under the scheduler-ready `backend/jobs/club_discovery/` package.
-- Scheduler-ready discovery jobs live under `backend/jobs/`; trigger wiring is intentionally deferred.
+- Scheduler-ready discovery jobs live under `backend/jobs/`; the semester discovery timer is defined in `backend/function_app.py`.
 - API routes are registered through a Flask app factory.
 - UI components are separated by concern and can be expanded without modifying the data layer.
 - The seed account is configurable and can be replaced as the platform expands to other colleges.
 - Discovery is a scheduled refresh job, not a user-facing request. `backend/jobs/club_discovery.run()` resolves the seed once, walks the paginated following graph, removes private accounts, and returns a raw refresh summary. AI filtering runs separately through `backend/run_ai_club_filter.py`.
-- In production, an Azure trigger or managed scheduler should call that job at a low frequency, then replace the file writer with a database repository. Trigger wiring is intentionally not implemented yet.
+- The semester discovery timer reads supported colleges and seed accounts from the `colleges` table, runs discovery and AI classification, and syncs approved clubs to the database. Activity checks and post extraction remain manual until their own timers are added.
 - The current live route returned 25 accounts per page, so Hunter's 284-account graph took 12 cursor pages in the verified refresh. The result was 259 raw accounts, 25 private accounts skipped, and 234 public accounts written to the clean export.
 - Following pages are `UserShort` records. The raw discovery export intentionally stores only `username`, `user_id`, `full_name`, `profile_pic_url`, and `is_private`.
 - The AI filter preserves `following.json`, sends only `username`, `user_id`, and `full_name` to DeepSeek, then matches approved IDs back to the original records to produce `clubs.json`.

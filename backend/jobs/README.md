@@ -1,6 +1,14 @@
 # Scheduled Jobs
 
-`jobs/` contains scheduler-facing entrypoints. Azure Functions, cron, or another managed scheduler should call a job entrypoint later; no trigger is defined here yet.
+`jobs/` contains scheduler-facing entrypoints. Semester club discovery has an Azure Functions timer trigger; due activity checks and post extraction remain manual until their triggers are added.
+
+## Semester club discovery (Azure Functions)
+
+`function_app.py` defines an Azure Functions timer trigger for `jobs.club_discovery.semester_refresh.run_semester_discovery()`. It runs at **12:00 UTC on January 5 and August 5** (`0 0 12 5 1,8 *`). This is a semester-aligned twice-yearly schedule, not an exact 180-day interval. `run_on_startup` is disabled so deploying or restarting the Function App does not unexpectedly trigger a paid discovery run.
+
+Each run queries every row in the `colleges` table, discovers and classifies that college's seed account following graph, then syncs approved clubs into the database. Newly added supported colleges are included once they have a `College` row with a seed account. The classification cache is stored in the `oncamp-discovery-cache` Blob container, so repeat semester runs don't reclassify unchanged accounts. `AzureWebJobsStorage` is used both by the timer host and this cache.
+
+The first full discovery should be started manually after deploying and testing the Function App; the next scheduled run is the next January 5 or August 5. Configure `DATABASE_URL` to persistent Postgres, `APP_ENV=production`, `SECRET_KEY`, `HIKERAPI_ACCESS_KEY`, and `DEEPSEEK_API_KEY` in Function App settings. The Function App also needs `AzureWebJobsStorage` pointing to its Storage account. Do not rely on the local SQLite fallback or commit `local.settings.json`.
 
 ## Club discovery
 
@@ -65,12 +73,12 @@ python run_post_extraction.py --username hunter_bsa --count 3
 
 ## Manual end-to-end sequence
 
-No Azure Function, timer, cron expression, run time, or timezone for a scheduled
-trigger is configured yet. The intervals above only determine which clubs are
-due **when the commands are run**. All active clubs use the same two-day
+The semester discovery timer is separate from the manual activity and
+post-extraction commands below. The intervals above only determine which clubs
+are due **when those commands are run**. All active clubs use the same two-day
 interval; there is no separate daily tier for the most active clubs. The
-180-day interval is approximate, not tied to academic semester dates. Archived
-clubs are not automatically rechecked or restored.
+180-day activity-check interval is approximate, not tied to academic semester
+dates. Archived clubs are not automatically rechecked or restored.
 
 With the root `.env` configured and dependencies installed, run the following
 from `backend/`. API calls to Hiker and DeepSeek can incur costs:
