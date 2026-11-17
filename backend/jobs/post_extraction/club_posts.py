@@ -11,19 +11,30 @@ How the schedule fits together (this is the hard part of the cron job):
    select_new_posts() drops anything at or before it.
 4. Events whose date has already passed when the job runs are never added, and
    archive_past_events() moves finished events to `archived_events`.
-5. A reminder post for an event we already have (same club, title and day) is skipped,
-   matching the uq_events_club_title_day rule on the events table.
+5. A reminder post for an event we already have (same club, same day, same or close title)
+   is skipped, and anything it adds (like the room) is copied onto the original. If the
+   title check finds nothing but the club has other events that day, DeepSeek decides
+   (duplicate_prompt.md). If it fails, the post is kept as a new event.
 """
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.extensions import db
 from app.models import ArchivedEvent, Club, ClubActivity, ClubPostCheckpoint, College, Event
 from app.services.event_archive import campus_now, event_has_passed
+from app.services.event_dedupe import fill_missing_fields
 from jobs.activity_check.buckets import ACTIVE_CHECK_INTERVAL_DAYS
-from jobs.post_extraction.ai import ExtractionError, extract_with_deepseek, find_google_form_url
+from jobs.post_extraction.ai import (
+    ExtractionError,
+    extract_with_deepseek,
+    find_google_form_url,
+    judge_same_event_with_deepseek,
+)
 from jobs.post_extraction.posts import extract_recent_posts
+
+logger = logging.getLogger(__name__)
 
 
 def _naive_utc(value: datetime | str) -> datetime:
@@ -96,12 +107,35 @@ def _save_checkpoint(
     return checkpoint
 
 
+def _find_original(club: Club, details: dict[str, Any], caption: str, judge: Any, counts: dict[str, int]):
+    # Title check first since it's free. Only ask the AI if the club has other events that day.
+    original = Event.find_duplicate(club.id, details["title"], details["start_time"])
+    if original is not None:
+        return original
+
+    candidates = Event.same_day_events(club.id, details["start_time"])
+    if not candidates:
+        return None
+    counts["ai_checks"] += 1
+    try:
+        chosen_id = judge({**details, "caption": caption}, candidates)
+    except ExtractionError as exc:
+        # If the AI is down, treat the post as new. A leftover duplicate beats a lost event.
+        logger.warning("Duplicate check skipped for %r: %s", details["title"], exc)
+        return None
+    original = next((event for event in candidates if event.id == chosen_id), None)
+    if original is not None:
+        counts["ai_duplicates"] += 1
+    return original
+
+
 def process_club_posts(
     club: Club,
     raw_medias: Any,
     count: int,
     extractor: Any = extract_with_deepseek,
     now: datetime | None = None,
+    duplicate_judge: Any = None,
 ) -> dict[str, Any]:
     """Run AI extraction on a club's newest `count` unchecked posts and save upcoming events.
 
@@ -125,6 +159,9 @@ def process_club_posts(
 
     events: list[Event] = []
     not_events = past_events = undated_events = duplicate_events = 0
+    # looked up here, not in the signature, so tests can swap it out
+    judge = duplicate_judge or judge_same_event_with_deepseek
+    ai_counts = {"ai_checks": 0, "ai_duplicates": 0}
     error = None
     for post in new_posts:
         posted_at = _naive_utc(post["taken_at"])
@@ -140,9 +177,16 @@ def process_club_posts(
             undated_events += 1  # without a date we can't tell if it's upcoming
         elif event_has_passed(details["start_time"], details["end_time"], local_now):
             past_events += 1
-        elif Event.find_duplicate(club.id, details["title"], details["start_time"]):
-            # A reminder or repost of an event we already have (same club, title and day).
-            # The events table also refuses these, so skip it here instead of failing the run.
+        elif (original := _find_original(club, details, post["caption"], judge, ai_counts)):
+            # Reminder for an event we already have. Skip it but keep any new info, like the room.
+            fill_missing_fields(
+                original,
+                location=details["location"],
+                end_time=details["end_time"],
+                google_form_url=find_google_form_url(post["caption"]),
+                description=details["description"],
+                is_free_food=details["has_free_food"],
+            )
             duplicate_events += 1
         else:
             event = Event(
@@ -178,5 +222,7 @@ def process_club_posts(
         "past_events": past_events,
         "undated_events": undated_events,
         "duplicate_events": duplicate_events,
+        "ai_duplicate_checks": ai_counts["ai_checks"],
+        "ai_duplicates_found": ai_counts["ai_duplicates"],
         "error": error,
     }

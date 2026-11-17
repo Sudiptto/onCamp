@@ -54,13 +54,23 @@ class Event(db.Model):
     )
 
     @classmethod
-    def find_duplicate(cls, club_id: int, title: str, start_time: datetime):
-        """The event this one would duplicate under uq_events_club_title_day, if any."""
+    def same_day_events(cls, club_id: int, start_time: datetime):
+        # all of one club's events on that day
         return cls.query.filter(
             cls.club_id == club_id,
-            db.func.lower(cls.title) == db.func.lower(title),
             db.func.date(cls.start_time) == db.func.date(start_time),
-        ).first()
+        ).order_by(cls.id).all()
+
+    @classmethod
+    def find_duplicate(cls, club_id: int, title: str, start_time: datetime):
+        # Looser than uq_events_club_title_day, which only catches the exact same title.
+        # Imported here so loading models doesn't pull the services package in first.
+        from app.services.event_dedupe import titles_match
+
+        return next(
+            (event for event in cls.same_day_events(club_id, start_time) if titles_match(event.title, title)),
+            None,
+        )
 
     @classmethod
     def upcoming(cls, college_id: int, today: date, until: date | None = None):
