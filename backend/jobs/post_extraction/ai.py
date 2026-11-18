@@ -10,6 +10,7 @@ from openai import OpenAI
 from jobs.ai.club_filter import REQUEST_TIMEOUT_SECONDS, get_model
 
 PROMPT_PATH = Path(__file__).parent / "prompt.md"
+DUPLICATE_PROMPT_PATH = Path(__file__).parent / "duplicate_prompt.md"
 CAMPUS_TIMEZONE = "America/New_York"
 
 # Google Forms live on either of these hosts; the AI is not asked to find links.
@@ -65,9 +66,7 @@ def parse_extraction(content: str) -> dict[str, Any]:
     }
 
 
-def extract_with_deepseek(
-    caption: str, posted_at: datetime, club_name: str, college_name: str
-) -> dict[str, Any]:
+def _ask_deepseek(prompt_path: Path, payload: dict[str, Any]) -> str:
     api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key:
         raise ExtractionError("Missing DEEPSEEK_API_KEY in the local .env file")
@@ -82,6 +81,25 @@ def extract_with_deepseek(
     options = {}
     if model not in {"deepseek-chat", "deepseek-reasoner"}:
         options["extra_body"] = {"thinking": {"type": "disabled"}}
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": prompt_path.read_text(encoding="utf-8")},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            **options,
+        )
+    except Exception as exc:
+        raise ExtractionError(f"DeepSeek request failed: {exc}") from exc
+    return response.choices[0].message.content or ""
+
+
+def extract_with_deepseek(
+    caption: str, posted_at: datetime, club_name: str, college_name: str
+) -> dict[str, Any]:
     payload = {
         "club_name": club_name,
         "college_name": college_name,
@@ -89,17 +107,37 @@ def extract_with_deepseek(
         "timezone": CAMPUS_TIMEZONE,
         "caption": caption,
     }
+    return parse_extraction(_ask_deepseek(PROMPT_PATH, payload))
+
+
+def _describe(event: Any) -> dict[str, Any]:
+    # works for a dict (new post) or an Event row (existing event)
+    get = event.get if isinstance(event, dict) else lambda name: getattr(event, name, None)
+    return {
+        "title": get("title"),
+        "start_time": get("start_time").isoformat() if get("start_time") else None,
+        "end_time": get("end_time").isoformat() if get("end_time") else None,
+        "location": get("location"),
+        "description": get("description"),
+    }
+
+
+def judge_same_event_with_deepseek(new_post: dict[str, Any], candidates: list[Any]) -> int | None:
+    # Returns the id of the existing event this post repeats, or None if it's a different one.
+    payload = {
+        "new_post": {**_describe(new_post), "caption": (new_post.get("caption") or "")[:1500]},
+        "existing_events": [{"id": event.id, **_describe(event)} for event in candidates],
+    }
+    content = _ask_deepseek(DUPLICATE_PROMPT_PATH, payload)
     try:
-        response = client.chat.completions.create(
-            model=model,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": PROMPT_PATH.read_text(encoding="utf-8")},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-            ],
-            **options,
-        )
-    except Exception as exc:
-        raise ExtractionError(f"DeepSeek request failed: {exc}") from exc
-    return parse_extraction(response.choices[0].message.content or "")
+        data = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ExtractionError(f"AI did not return valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ExtractionError("AI duplicate answer must be a JSON object")
+    chosen = data.get("duplicate_of")
+    valid_ids = {event.id for event in candidates}
+    # True counts as 1 in Python, and an id we never sent is made up. Both mean no.
+    if isinstance(chosen, bool) or chosen not in valid_ids:
+        return None
+    return chosen
