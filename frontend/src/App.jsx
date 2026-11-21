@@ -323,7 +323,7 @@ export default function App() {
         <div className="masthead-inner">
           <p className="eyebrow">Hunter College</p>
           <h1>onCamp</h1>
-          <p className="lede">Club events, in one calendar.</p>
+          <p className="lede"><strong>Where campus happens.</strong><span>Every club event, in one place.</span></p>
           {stats?.clubs > 0 && (
             <ul className="site-stats" aria-label="onCamp at a glance">
               <li><strong>{stats.clubs}</strong> clubs</li>

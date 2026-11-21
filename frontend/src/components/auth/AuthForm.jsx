@@ -80,7 +80,7 @@ export default function AuthForm({ onClose, message = '' }) {
     }}>
       <section className="auth-panel" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <button type="button" className="auth-close" aria-label="Close sign-in" onClick={onClose}>×</button>
-        <p className="eyebrow">Your <span className="brand-name">onCamp</span> account</p>
+        <p className="eyebrow">You&apos;re one tap away</p>
         <h2 id="auth-title">Sign in</h2>
         <p className="auth-intro">{message || 'See every upcoming event, save your favorites, and add them to your calendar.'}</p>
         <div className="auth-google" ref={buttonRef} aria-busy={busy} />
