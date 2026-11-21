@@ -3,8 +3,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchClubOptions, fetchEvents, fetchStats } from './api'
 import AccountMenu from './components/auth/AccountMenu'
 import AuthForm from './components/auth/AuthForm'
+import ClubMark from './components/ClubMark'
+import ClubsView from './components/ClubsView'
+import EventDetail from './components/EventDetail'
+import FoodView from './components/FoodView'
+import HomeView from './components/HomeView'
+import QuickFilters from './components/QuickFilters'
+import TabBar from './components/TabBar'
 import { downloadIcs, googleCalendarUrl } from './calendar'
 import { useAuth } from './context/AuthContext'
+import { countFoodThisWeek, matchesQuickFilter, moreFromClub, sameClub, sortEvents, summarizeClubs } from './filters.js'
 import { listSaved, toggleSaved } from './savedEvents'
 import {
   closestDate,
@@ -25,30 +33,6 @@ const RANGES = [
 ]
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-function initials(name) {
-  return name
-    .split(' ')
-    .filter((part) => part && part[0] === part[0].toUpperCase())
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-}
-
-function ClubMark({ name, src }) {
-  const [failed, setFailed] = useState(false)
-  if (failed || !src) {
-    return <span className="avatar fallback">{initials(name)}</span>
-  }
-  return (
-    <img
-      className="avatar"
-      src={src}
-      alt=""
-      onError={() => setFailed(true)}
-    />
-  )
-}
 
 function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
   return (
@@ -104,7 +88,17 @@ function EventCard({ event, today, selected, saved, onSelect, onToggleSave }) {
 const formatCount = (n) => (n >= 1000 ? `${n / 1000}K+` : `${n}+`)
 
 export default function App() {
-  const today = toISODate(new Date())
+  // re-render every minute so "Starting in 45 min" doesn't go stale
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
+  const today = toISODate(now)
+
+  const [tab, setTab] = useState('home')
+  const [quick, setQuick] = useState('all')
+  const [detail, setDetail] = useState(null)
   const [mode, setMode] = useState('upcoming')
   const [range, setRange] = useState('2w')
   const [clubId, setClubId] = useState('')
@@ -114,16 +108,16 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cursor, setCursor] = useState(() => {
-    const now = new Date()
-    return { year: now.getFullYear(), month: now.getMonth() }
+    const start = new Date()
+    return { year: start.getFullYear(), month: start.getMonth() }
   })
   const [selected, setSelected] = useState(today)
-  const [foodOnly, setFoodOnly] = useState(false)
   const [savedEvents, setSavedEvents] = useState([])
   const [savedOnly, setSavedOnly] = useState(false)
   const [saveError, setSaveError] = useState('')
   const savedOnlyRef = useRef(false)
   savedOnlyRef.current = savedOnly
+  const foodOnly = quick === 'food'
   const { user, authLoading } = useAuth()
   const [stats, setStats] = useState(null)
   useEffect(() => {
@@ -216,8 +210,8 @@ export default function App() {
   )
   const sourceEvents = savedOnly ? savedEvents : allEvents
   const events = sourceEvents.filter((event) => {
-    if (foodOnly && !event.free_food) return false
-    if (savedOnly && clubId && event.club_id !== clubId) return false
+    if (!matchesQuickFilter(event, quick, now)) return false
+    if (savedOnly && clubId && !sameClub(event.club_id, clubId)) return false
     return true
   })
   const foodCount = allEvents.filter((event) => event.free_food).length
@@ -234,6 +228,14 @@ export default function App() {
     () => [...byDate.keys()].sort().map((date) => ({ date, events: byDate.get(date) })),
     [byDate],
   )
+
+  // archive and saved aren't "what's on now" views, so they skip the happening-today stuff
+  const live = mode === 'upcoming' && !savedOnly
+  const sortedEvents = sortEvents(events)
+  const foodEvents = sortEvents(sourceEvents.filter((event) => event.free_food))
+  const clubRows = summarizeClubs(allEvents, clubs, today)
+  const selectedClub = clubId ? clubs.find((club) => sameClub(club.id, clubId)) : null
+  const relatedEvents = detail ? moreFromClub(allEvents, detail) : []
 
   const weeks = monthMatrix(cursor.year, cursor.month)
 
@@ -253,7 +255,7 @@ export default function App() {
     if (!next) return
     const visible = savedEvents.filter((event) => {
       if (foodOnly && !event.free_food) return false
-      if (clubId && event.club_id !== clubId) return false
+      if (clubId && !sameClub(event.club_id, clubId)) return false
       return true
     })
     if (visible.length) focusDate(closestDate(visible, today))
@@ -273,12 +275,16 @@ export default function App() {
     }
   }
 
-  function toggleFood() {
-    const next = !foodOnly
-    setFoodOnly(next)
-    if (!next) return
-    const foodEvents = (payload?.events ?? []).filter((event) => event.free_food)
-    if (foodEvents.length) focusDate(closestDate(foodEvents, today))
+  function selectQuick(next) {
+    setQuick(next)
+    if (next !== 'food' || tab !== 'calendar') return
+    const upcomingFood = allEvents.filter((event) => event.free_food)
+    if (upcomingFood.length) focusDate(closestDate(upcomingFood, today))
+  }
+
+  function pickClub(id) {
+    setClubId(String(id))
+    setTab('home')
   }
 
   function shiftMonth(offset) {
@@ -291,6 +297,25 @@ export default function App() {
     : mode === 'archive'
       ? 'Past semester'
       : RANGES.find((item) => item.id === range)?.label
+
+  const unlockBanner = payload?.limited && !savedOnly && (
+    <div className="unlock-banner" role="note">
+      <span>
+        {payload.locked_count} more event{payload.locked_count === 1 ? '' : 's'} later on.
+      </span>
+      <button type="button" onClick={() => openSignIn('Sign in with Google to see every upcoming event.')}>
+        Sign in to see them
+      </button>
+    </div>
+  )
+
+  const emptyText = savedOnly
+    ? 'No saved events yet.'
+    : foodOnly || tab === 'food'
+      ? 'No free food in this view.'
+      : 'No events in this view.'
+
+  const showFilters = tab !== 'clubs'
 
   return (
     <div className="page">
@@ -314,179 +339,223 @@ export default function App() {
         </div>
       </header>
 
+      <TabBar active={tab} onChange={setTab} />
+
       <main className="shell">
-        <section className="toolbar" aria-label="Event filters">
-          <div className="mode-switch" role="group" aria-label="Which events">
-            <button
-              type="button"
-              aria-pressed={mode === 'upcoming'}
-              onClick={() => setMode('upcoming')}
-            >
-              Upcoming
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === 'archive'}
-              onClick={() => (user ? setMode('archive') : openSignIn('Sign in with Google to browse past events.'))}
-            >
-              Archive
-            </button>
-            <button type="button" aria-pressed={foodOnly} onClick={toggleFood}>
-              Free food
-            </button>
-            <button type="button" aria-pressed={savedOnly} onClick={toggleSavedView}>
-              Saved{user && savedEvents.length ? ` ${savedEvents.length}` : ''}
-            </button>
-          </div>
+        {(tab === 'home' || tab === 'calendar') && <QuickFilters value={quick} onChange={selectQuick} />}
 
-          {mode === 'upcoming' && (
-            <div className="range-switch" role="group" aria-label="Time range">
-              {RANGES.map((item) => (
+        {showFilters && (
+          <details className="more-filters">
+            <summary>More filters</summary>
+            <section className="toolbar" aria-label="Event filters">
+              <div className="mode-switch" role="group" aria-label="Which events">
                 <button
-                  key={item.id}
                   type="button"
-                  aria-pressed={range === item.id}
-                  onClick={() => setRange(item.id)}
+                  aria-pressed={mode === 'upcoming'}
+                  onClick={() => setMode('upcoming')}
                 >
-                  {item.label}
+                  Upcoming
                 </button>
-              ))}
-            </div>
-          )}
-
-          <label className="club-filter">
-            Club
-            <select value={clubId} onChange={(event) => setClubId(event.target.value)}>
-              <option value="">All clubs</option>
-              {clubs.map((club) => (
-                <option key={club.id} value={club.id}>
-                  {club.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </section>
-
-        <p className="status-line">
-          {loading && 'Loading events…'}
-          {!loading && error && error}
-          {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${!savedOnly && foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}${user && savedEvents.length && !savedOnly ? ` · ${savedEvents.length} saved` : ''}`}
-        </p>
-        {clubsError && <p className="status-line" role="alert">{clubsError}</p>}
-
-        <div className="layout">
-          <section className="calendar" aria-label="Month calendar">
-            <div className="calendar-nav">
-              <button type="button" onClick={() => shiftMonth(-1)} aria-label="Previous month">
-                ‹
-              </button>
-              <h2>{monthLabel(cursor.year, cursor.month)}</h2>
-              <button type="button" onClick={() => shiftMonth(1)} aria-label="Next month">
-                ›
-              </button>
-              <button type="button" className="today-button" onClick={() => focusDate(today)}>
-                Today
-              </button>
-            </div>
-
-            <div className="weekday-row">
-              {WEEKDAYS.map((day) => (
-                <span key={day}>{day}</span>
-              ))}
-            </div>
-
-            <div className="weeks">
-              {weeks.map((week) => (
-                <div key={toISODate(week[0])} className="week">
-                  {week.map((date) => {
-                    const iso = toISODate(date)
-                    const dayEvents = byDate.get(iso) ?? []
-                    const hasFood = dayEvents.some((event) => event.free_food)
-                    const hasSaved = dayEvents.some((event) => savedIds.has(event.event_id))
-                    const outside = date.getMonth() !== cursor.month
-                    return (
-                      <button
-                        key={iso}
-                        type="button"
-                        className={[
-                          'day',
-                          outside ? 'is-outside' : '',
-                          iso === today ? 'is-today' : '',
-                          iso === selected ? 'is-selected' : '',
-                          hasFood ? 'has-food' : '',
-                          hasSaved ? 'has-saved' : '',
-                        ].filter(Boolean).join(' ')}
-                        aria-pressed={iso === selected}
-                        aria-label={`${formatLongDate(iso)}, ${dayEvents.length} events${hasFood ? ', free food' : ''}${hasSaved ? ', saved' : ''}`}
-                        onClick={() => focusDate(iso)}
-                      >
-                        <span className="day-top">
-                          <span className="day-number">{date.getDate()}</span>
-                        </span>
-                        {dayEvents.length > 0 && (
-                          <span className={hasFood ? 'day-dot is-food' : 'day-dot'} aria-hidden="true" />
-                        )}
-                        <span className="day-chips">
-                          {dayEvents.slice(0, 2).map((event) => (
-                            <span key={event.event_id} className={event.free_food ? 'day-chip is-food' : 'day-chip'}>
-                              {event.event_name}
-                            </span>
-                          ))}
-                          {dayEvents.length > 2 && (
-                            <span className="day-more">+{dayEvents.length - 2}</span>
-                          )}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="schedule" aria-label="Events in this view">
-            <h2>{savedOnly ? 'Saved' : mode === 'archive' ? 'Archive' : 'Schedule'}</h2>
-            {payload?.limited && !savedOnly && (
-              <div className="unlock-banner" role="note">
-                <span>
-                  {payload.locked_count} more event{payload.locked_count === 1 ? '' : 's'} later on.
-                </span>
-                <button type="button" onClick={() => openSignIn('Sign in with Google to see every upcoming event.')}>
-                  Sign in to see them
+                <button
+                  type="button"
+                  aria-pressed={mode === 'archive'}
+                  onClick={() => (user ? setMode('archive') : openSignIn('Sign in with Google to browse past events.'))}
+                >
+                  Archive
+                </button>
+                <button type="button" aria-pressed={savedOnly} onClick={toggleSavedView}>
+                  Saved{user && savedEvents.length ? ` ${savedEvents.length}` : ''}
                 </button>
               </div>
-            )}
-            {saveError && <p className="empty" role="alert">{saveError}</p>}
-            {!loading && !error && events.length === 0 && (
-              <p className="empty">
-                {savedOnly
-                  ? 'No saved events yet.'
-                  : foodOnly
-                    ? 'No free food in this view.'
-                    : 'No events in this view.'}
-              </p>
-            )}
-            <div className="schedule-list">
-              {scheduleDays.map((day) => (
-                <section key={day.date} className="schedule-day" aria-label={formatLongDate(day.date)}>
-                  <h3>{formatLongDate(day.date)}</h3>
-                  {day.events.map((event) => (
-                    <EventCard
-                      key={event.event_id}
-                      event={event}
-                      today={today}
-                      selected={event.date === selected}
-                      saved={savedIds.has(event.event_id)}
-                      onSelect={focusDate}
-                      onToggleSave={onToggleSave}
-                    />
+
+              {mode === 'upcoming' && (
+                <div className="range-switch" role="group" aria-label="Time range">
+                  {RANGES.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={range === item.id}
+                      onClick={() => setRange(item.id)}
+                    >
+                      {item.label}
+                    </button>
                   ))}
-                </section>
-              ))}
-            </div>
-          </section>
-        </div>
+                </div>
+              )}
+
+              <label className="club-filter">
+                Club
+                <select value={clubId} onChange={(event) => setClubId(event.target.value)}>
+                  <option value="">All clubs</option>
+                  {clubs.map((club) => (
+                    <option key={club.id} value={club.id}>
+                      {club.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+          </details>
+        )}
+
+        {showFilters && clubId && (
+          <button type="button" className="club-pill" onClick={() => setClubId('')}>
+            {selectedClub?.name ?? 'Club'} ✕
+          </button>
+        )}
+
+        {tab !== 'clubs' && (
+          <p className="status-line">
+            {loading && 'Loading events…'}
+            {!loading && error && error}
+            {!loading && !error && `${events.length} ${events.length === 1 ? 'event' : 'events'} · ${viewLabel}${!savedOnly && foodCount && !foodOnly ? ` · ${foodCount} with free food` : ''}${user && savedEvents.length && !savedOnly ? ` · ${savedEvents.length} saved` : ''}`}
+          </p>
+        )}
+        {clubsError && <p className="status-line" role="alert">{clubsError}</p>}
+
+        {tab === 'home' && (
+          <>
+            {unlockBanner}
+            {saveError && <p className="empty" role="alert">{saveError}</p>}
+            {!loading && !error && sortedEvents.length === 0 && <p className="empty">{emptyText}</p>}
+            <HomeView
+              events={sortedEvents}
+              now={now}
+              live={live}
+              title={live ? 'Upcoming' : viewLabel}
+              onOpen={setDetail}
+            />
+          </>
+        )}
+
+        {tab === 'food' && (
+          <>
+            {unlockBanner}
+            {saveError && <p className="empty" role="alert">{saveError}</p>}
+            {!loading && !error && foodEvents.length === 0 && <p className="empty">{emptyText}</p>}
+            <FoodView
+              events={foodEvents}
+              weekCount={countFoodThisWeek(sourceEvents, now)}
+              live={live}
+              now={now}
+              onOpen={setDetail}
+            />
+          </>
+        )}
+
+        {tab === 'clubs' && <ClubsView clubs={clubRows} onPick={pickClub} />}
+
+        {tab === 'calendar' && (
+          <div className="layout">
+            <section className="calendar" aria-label="Month calendar">
+              <div className="calendar-nav">
+                <button type="button" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+                  ‹
+                </button>
+                <h2>{monthLabel(cursor.year, cursor.month)}</h2>
+                <button type="button" onClick={() => shiftMonth(1)} aria-label="Next month">
+                  ›
+                </button>
+                <button type="button" className="today-button" onClick={() => focusDate(today)}>
+                  Today
+                </button>
+              </div>
+
+              <div className="weekday-row">
+                {WEEKDAYS.map((day) => (
+                  <span key={day}>{day}</span>
+                ))}
+              </div>
+
+              <div className="weeks">
+                {weeks.map((week) => (
+                  <div key={toISODate(week[0])} className="week">
+                    {week.map((date) => {
+                      const iso = toISODate(date)
+                      const dayEvents = byDate.get(iso) ?? []
+                      const hasFood = dayEvents.some((event) => event.free_food)
+                      const hasSaved = dayEvents.some((event) => savedIds.has(event.event_id))
+                      const outside = date.getMonth() !== cursor.month
+                      return (
+                        <button
+                          key={iso}
+                          type="button"
+                          className={[
+                            'day',
+                            outside ? 'is-outside' : '',
+                            iso === today ? 'is-today' : '',
+                            iso === selected ? 'is-selected' : '',
+                            hasFood ? 'has-food' : '',
+                            hasSaved ? 'has-saved' : '',
+                          ].filter(Boolean).join(' ')}
+                          aria-pressed={iso === selected}
+                          aria-label={`${formatLongDate(iso)}, ${dayEvents.length} events${hasFood ? ', free food' : ''}${hasSaved ? ', saved' : ''}`}
+                          onClick={() => focusDate(iso)}
+                        >
+                          <span className="day-top">
+                            <span className="day-number">{date.getDate()}</span>
+                          </span>
+                          {dayEvents.length > 0 && (
+                            <span className={hasFood ? 'day-dot is-food' : 'day-dot'} aria-hidden="true" />
+                          )}
+                          <span className="day-chips">
+                            {dayEvents.slice(0, 2).map((event) => (
+                              <span key={event.event_id} className={event.free_food ? 'day-chip is-food' : 'day-chip'}>
+                                {event.event_name}
+                              </span>
+                            ))}
+                            {dayEvents.length > 2 && (
+                              <span className="day-more">+{dayEvents.length - 2}</span>
+                            )}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="schedule" aria-label="Events in this view">
+              <h2>{savedOnly ? 'Saved' : mode === 'archive' ? 'Archive' : 'Schedule'}</h2>
+              {unlockBanner}
+              {saveError && <p className="empty" role="alert">{saveError}</p>}
+              {!loading && !error && events.length === 0 && <p className="empty">{emptyText}</p>}
+              <div className="schedule-list">
+                {scheduleDays.map((day) => (
+                  <section key={day.date} className="schedule-day" aria-label={formatLongDate(day.date)}>
+                    <h3>{formatLongDate(day.date)}</h3>
+                    {day.events.map((event) => (
+                      <EventCard
+                        key={event.event_id}
+                        event={event}
+                        today={today}
+                        selected={event.date === selected}
+                        saved={savedIds.has(event.event_id)}
+                        onSelect={focusDate}
+                        onToggleSave={onToggleSave}
+                      />
+                    ))}
+                  </section>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
       </main>
+
+      {detail && (
+        <EventDetail
+          key={detail.event_id}
+          event={detail}
+          now={now}
+          saved={savedIds.has(detail.event_id)}
+          related={relatedEvents}
+          onClose={() => setDetail(null)}
+          onToggleSave={onToggleSave}
+          onOpen={setDetail}
+        />
+      )}
       {authFormOpen && <AuthForm message={authPrompt} onClose={() => setAuthFormOpen(false)} />}
     </div>
   )
