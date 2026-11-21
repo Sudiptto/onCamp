@@ -553,6 +553,9 @@ h1 {
 .account-error { width: 100%; font-size: .85rem; }
 .auth-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 1rem; background: rgba(16, 20, 30, .62); }
 .auth-panel { position: relative; width: min(100%, 26rem); padding: 2rem; border-radius: 1rem; background: #fff; color: #20242c; box-shadow: 0 1rem 3rem rgba(0,0,0,.24); }
+.auth-panel { text-align: center; }
+.auth-panel .eyebrow { color: var(--purple); }
+.brand-name { text-transform: none; }
 .auth-panel h2 { margin: .25rem 0 .5rem; }
 .auth-close { position: absolute; top: .7rem; right: .85rem; border: 0; background: transparent; font-size: 1.7rem; cursor: pointer; }
 .auth-intro { margin: 0 0 1.2rem; color: #555d6a; }
