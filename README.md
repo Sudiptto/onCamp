@@ -52,10 +52,16 @@ cd backend
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+flask --app run db upgrade      # create or update the database tables
 python run.py
 ```
 
 Flask runs at `http://localhost:5000`.
+
+Database tables are managed with Flask-Migrate (files in `backend/migrations/versions`).
+After changing a model, run `flask --app run db migrate -m "what changed"`, check the new
+file, and commit it. Alembic can't see expression indexes (like `uq_events_club_title_day`),
+so write those by hand. `pytest` fails if the models and the migrations don't match.
 
 ### 3. Frontend
 

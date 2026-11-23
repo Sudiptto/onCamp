@@ -15,6 +15,9 @@ class BaseConfig:
         "sqlite:///oncamp_dev.db",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Tables are created and changed by migrations (`flask --app run db upgrade`).
+    # Set AUTO_CREATE_TABLES=1 only for a throwaway local database.
+    AUTO_CREATE_TABLES = os.getenv("AUTO_CREATE_TABLES", "0") == "1"
 
     # HTTP-only so JavaScript can't read the session cookie.
     SESSION_COOKIE_HTTPONLY = True

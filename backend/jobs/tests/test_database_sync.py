@@ -19,6 +19,7 @@ def app():
         "SQLALCHEMY_DATABASE_URI": "sqlite://",
         "TESTING": True,
         "RATELIMIT_ENABLED": False,
+        "AUTO_CREATE_TABLES": True,
     })
     with app.app_context():
         seed_colleges()
