@@ -10,6 +10,13 @@ Each run queries every row in the `colleges` table, discovers and classifies tha
 
 The first full discovery should be started manually after deploying and testing the Function App; the next scheduled run is the next January 5 or August 5. Configure `DATABASE_URL` to persistent Postgres, `APP_ENV=production`, `SECRET_KEY`, `HIKERAPI_ACCESS_KEY`, and `DEEPSEEK_API_KEY` in Function App settings. The Function App also needs `AzureWebJobsStorage` pointing to its Storage account. Do not rely on the local SQLite fallback or commit `local.settings.json`.
 
+Existing PostgreSQL databases created with the earlier models must widen the profile-image URL columns; `create_all()` does not alter existing tables:
+
+```sql
+ALTER TABLE clubs ALTER COLUMN profile_pic_url TYPE text;
+ALTER TABLE archived_clubs ALTER COLUMN profile_pic_url TYPE text;
+```
+
 ## Club discovery
 
 `jobs/club_discovery.run()` performs one Hunter or college-USG refresh:

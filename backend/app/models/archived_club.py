@@ -11,6 +11,6 @@ class ArchivedClub(db.Model):
     name = db.Column(db.String(255), nullable=False)
     instagram_handle = db.Column(db.String(255), unique=True, nullable=False)
     instagram_user_id = db.Column(db.String(64), unique=True, nullable=True)
-    profile_pic_url = db.Column(db.String(500), nullable=True)
+    profile_pic_url = db.Column(db.Text, nullable=True)
     last_post_at = db.Column(db.DateTime, nullable=True)
     archived_at = db.Column(db.DateTime, nullable=False)

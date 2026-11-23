@@ -42,6 +42,7 @@ class DevelopmentConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     DEBUG = False
     SESSION_COOKIE_SECURE = True
+    AUTO_CREATE_TABLES = False
 
 
 config = {

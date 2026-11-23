@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .api import api_bp
 from .config import get_config
@@ -15,12 +16,22 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.config.from_object(get_config())
     app.config.update(config_overrides or {})
 
+    if os.getenv("TRUST_PROXY") == "1":
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
     if (
         os.getenv("APP_ENV") == "production"
         and not os.getenv("SECRET_KEY")
         and not (config_overrides or {}).get("SECRET_KEY")
     ):
         raise RuntimeError("SECRET_KEY must be set in production.")
+
+    if (
+        os.getenv("APP_ENV") == "production"
+        and not os.getenv("DATABASE_URL")
+        and not (config_overrides or {}).get("SQLALCHEMY_DATABASE_URI")
+    ):
+        raise RuntimeError("DATABASE_URL must be set in production.")
 
     db.init_app(app)
     limiter.init_app(app)

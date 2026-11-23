@@ -80,7 +80,7 @@ All secrets live in `.env` at the project root. Never hardcode keys in source fi
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | Supabase Postgres connection string (shared, ask team) |
+| `DATABASE_URL` | PostgreSQL connection string; required in production |
 | `HIKERAPI_ACCESS_KEY` | HikerAPI key for Instagram data |
 | `HIKER_BASE_URL` | `https://api.instagrapi.com` |
 | `HIKER_FOLLOWING_ENDPOINT` | Current cursor-based following route: `/gql/user/following/chunk` |
@@ -94,7 +94,12 @@ All secrets live in `.env` at the project root. Never hardcode keys in source fi
 | `APP_ENV` | Runtime environment (`development`, `production`) |
 
 The backend loads the root `.env` before reading its database and other
-configuration. If `DATABASE_URL` is unset, it uses the local SQLite database.
+configuration. If `DATABASE_URL` is unset, development uses local SQLite;
+production fails to start. Production does not create database tables on startup.
+The backend Dockerfile runs Gunicorn as a non-root user and copies only the API
+code and dependencies; provide production configuration and secrets at runtime.
+Set `TRUST_PROXY=1` only behind a trusted proxy that appends the client address,
+such as Azure Container Apps ingress, so per-IP limits use the rightmost address.
 
 ## Branch convention
 
