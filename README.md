@@ -68,6 +68,10 @@ npm run dev
 Vite runs at `http://localhost:5173`.
 
 The calendar reads events from the backend database through the `/api` proxy.
+To use a separately hosted API, set `VITE_API_ORIGIN` to its HTTPS origin before
+building the frontend, and allow the frontend's exact origin in the backend's
+`CORS_ORIGINS`. Cross-site sessions also require secure `SameSite=None` cookies;
+browsers that block third-party cookies may still prevent sign-in.
 To populate that database, see the manual discovery, activity-check, and post
 extraction sequence in [Scheduled Jobs](backend/jobs/README.md). Until a
 scheduler is deployed, activity checks and post extraction do not run automatically.
@@ -76,11 +80,13 @@ after that Function App is deployed and configured.
 
 ## Environment variables
 
-All secrets live in `.env` at the project root. Never hardcode keys in source files.
+For local development, keep secrets in `.env` at the project root. In production,
+provide secrets at runtime, for example through Azure Key Vault references. Never
+hardcode keys in source files.
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string; required in production |
+| `DATABASE_URL` | PostgreSQL connection string using `postgresql+psycopg2://`; required in production |
 | `HIKERAPI_ACCESS_KEY` | HikerAPI key for Instagram data |
 | `HIKER_BASE_URL` | `https://api.instagrapi.com` |
 | `HIKER_FOLLOWING_ENDPOINT` | Current cursor-based following route: `/gql/user/following/chunk` |
@@ -96,6 +102,8 @@ All secrets live in `.env` at the project root. Never hardcode keys in source fi
 The backend loads the root `.env` before reading its database and other
 configuration. If `DATABASE_URL` is unset, development uses local SQLite;
 production fails to start. Production does not create database tables on startup.
+The Docker image includes the psycopg2 driver, so use the
+`postgresql+psycopg2://` URL scheme and require TLS for production PostgreSQL.
 The backend Dockerfile runs Gunicorn as a non-root user and copies only the API
 code and dependencies; provide production configuration and secrets at runtime.
 Set `TRUST_PROXY=1` only behind a trusted proxy that appends the client address,

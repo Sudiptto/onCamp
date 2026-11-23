@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { fetchClubOptions, fetchEvents } from './api.js'
+import { apiUrl, fetchClubOptions, fetchEvents } from './api.js'
+
+test('API URLs support a configured origin while preserving relative local requests', () => {
+  assert.equal(apiUrl('/api/events', ''), '/api/events')
+  assert.equal(apiUrl('/api/events', 'https://api.example.com/'), 'https://api.example.com/api/events')
+})
 
 test('calendar requests the filtered events API with session credentials', async (t) => {
   const originalFetch = globalThis.fetch

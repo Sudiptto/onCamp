@@ -6,6 +6,10 @@ export class ApiError extends Error {
   }
 }
 
+export function apiUrl(path, origin = import.meta.env?.VITE_API_ORIGIN || '') {
+  return `${origin.replace(/\/+$/, '')}${path}`
+}
+
 async function readJson(response) {
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
@@ -16,10 +20,10 @@ async function readJson(response) {
 
 async function getJson(path) {
   try {
-    return await readJson(await fetch(path, { credentials: 'include' }))
+    return await readJson(await fetch(apiUrl(path), { credentials: 'include' }))
   } catch (error) {
     if (error instanceof TypeError) {
-      throw new Error('Could not reach the events API. Start the backend on port 5000.')
+      throw new Error('Could not reach the events API. Check your connection and backend configuration.')
     }
     throw error
   }
@@ -63,7 +67,7 @@ let csrfToken = ''
 async function authRequest(path, options = {}) {
   let response
   try {
-    response = await fetch(path, {
+    response = await fetch(apiUrl(path), {
       ...options,
       credentials: 'include',
       headers: {
