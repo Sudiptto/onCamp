@@ -5,7 +5,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .api import api_bp
 from .config import get_config
-from .extensions import cors, db, limiter
+from .extensions import cors, db, limiter, migrate
 from . import models  # noqa: F401  (importing registers the tables with SQLAlchemy)
 
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
@@ -34,6 +34,8 @@ def create_app(config_overrides: dict | None = None) -> Flask:
         raise RuntimeError("DATABASE_URL must be set in production.")
 
     db.init_app(app)
+    # render_as_batch lets migrations change existing tables on SQLite, which can't ALTER much.
+    migrate.init_app(app, db, render_as_batch=True)
     limiter.init_app(app)
 
     origins = [
@@ -49,7 +51,7 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     def too_many_requests(_error):
         return jsonify({"error": "Too many requests, please slow down."}), 429
 
-    if app.config.get("AUTO_CREATE_TABLES", True):
+    if app.config.get("AUTO_CREATE_TABLES", False):
         with app.app_context():
             db.create_all()
 

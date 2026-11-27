@@ -42,7 +42,7 @@ def fake_extractor(caption, posted_at, club_name, college_name):
 
 @pytest.fixture
 def club():
-    app = create_app({"SQLALCHEMY_DATABASE_URI": "sqlite://", "TESTING": True, "RATELIMIT_ENABLED": False})
+    app = create_app({"SQLALCHEMY_DATABASE_URI": "sqlite://", "TESTING": True, "RATELIMIT_ENABLED": False, "AUTO_CREATE_TABLES": True})
     with app.app_context():
         seed_colleges()
         sync_clubs([{"username": "hunter_bsa", "user_id": "1", "full_name": "Hunter BSA"}], "hunter")
