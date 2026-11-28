@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models import ArchivedEvent, Club, ClubActivity, ClubPostCheckpoint, Event
 from app.services.event_archive import archive_past_events
+from jobs.lurk.posts import lurk_posts_to_medias
 from jobs.post_extraction.ai import ExtractionError, find_google_form_url, parse_extraction
 from jobs.post_extraction.club_posts import (
     find_clubs_due_for_post_scan,
@@ -120,6 +121,29 @@ def test_second_run_does_not_recheck_posts(club):
     checkpoint = ClubPostCheckpoint.query.one()
     assert checkpoint.last_post_id == "3"
     assert Event.query.count() == 2
+
+
+def test_lurk_posts_are_persisted_and_checkpointed(club):
+    payload = {"posts": [
+        {"pk": "1", "code": "OLD", "taken_at": 1000, "caption": "just a meme"},
+        {"pk": "2", "code": "NEW", "taken_at": 2000, "caption": "future event pizza"},
+    ]}
+    calls = []
+
+    def counting(*args):
+        calls.append(args)
+        return fake_extractor(*args)
+
+    medias_page = lurk_posts_to_medias(payload)
+    first = process_club_posts(club, medias_page, 3, extractor=counting, now=NOW)
+    second = process_club_posts(club, medias_page, 3, extractor=counting, now=NOW)
+
+    assert first["processed"] == 2
+    assert Event.query.one().post_id == "2"
+    assert ClubPostCheckpoint.query.one().last_post_id == "2"
+    assert second["processed"] == 0
+    assert second["already_checked"] == 2
+    assert len(calls) == 2
 
 
 def test_ai_failure_keeps_failed_post_for_retry(club):

@@ -11,10 +11,13 @@ Usage:
     cd backend
     python run_post_extraction.py --due --college hunter --limit 5
     python run_post_extraction.py --username hunter_bsa another_club --count 3
+
+Post fetch uses LurkAPI (`/v2/instagram/user/posts`, 1 credit per club). DeepSeek is unchanged.
 """
 
 import argparse
 import json
+import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,12 +27,13 @@ from dotenv import load_dotenv
 from app import create_app
 from app.models import Club
 from app.services.event_archive import archive_past_events
-from app.services.hiker_client import HikerAPIError, HikerClient
+from app.services.lurk_client import LurkAPIError, LurkClient, USER_POSTS_PAGE_SIZE
+from jobs.lurk.posts import fetch_club_medias
 from jobs.post_extraction.club_posts import find_clubs_due_for_post_scan, process_club_posts
 from jobs.post_extraction.pipeline import DEFAULT_OUTPUT_DIR
 
 ROOT = Path(__file__).resolve().parents[2]
-MAX_POSTS = 12  # one HikerAPI page
+MAX_POSTS = USER_POSTS_PAGE_SIZE  # one LurkAPI user-posts page, 1 credit
 DEFAULT_COUNT = 3
 
 
@@ -43,15 +47,17 @@ def _show(event) -> None:
     print(f"          free food: {event.is_free_food} | form: {event.google_form_url} | {event.source_url}")
 
 
-def scan_club(club: Club, client: HikerClient, count: int, now: datetime) -> dict:
+def scan_club(club: Club, client: LurkClient, count: int, now: datetime) -> dict:
     print(f"\n{club.name} (@{club.instagram_handle})")
-    raw = client.get_user_medias(club.instagram_user_id)
-    # Keep the raw response for inspection (data/ is gitignored).
+    # One page is 1 credit and already includes captions. Sort later so a pin is not treated as newest.
+    raw, medias = fetch_club_medias(client, club.instagram_handle, page_size=MAX_POSTS)
     DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     (DEFAULT_OUTPUT_DIR / f"{club.instagram_handle}.json").write_text(
-        json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps({"raw": raw, "medias": medias}, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    result = process_club_posts(club, raw, count, now=now)
+    result = process_club_posts(club, medias, count, now=now)
+    last = client.calls[-1] if client.calls else {}
+    print(f"  lurk credits {last.get('credits_charged')} | remaining {last.get('credits_remaining')}")
     print(
         f"  fetched {result['fetched']} | already checked {result['already_checked']} | "
         f"processed {result['processed']} | events added {len(result['events'])} | "
@@ -74,6 +80,7 @@ def scan_club(club: Club, client: HikerClient, count: int, now: datetime) -> dic
 
 def main(argv: list[str] | None = None) -> int:
     load_dotenv(ROOT.parent / ".env")
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description="Find upcoming events in club Instagram posts.")
     parser.add_argument("--due", action="store_true", help="Scan active clubs that are due (every 2 days)")
     parser.add_argument("--college", default="hunter", help="College key used with --due")
@@ -107,16 +114,21 @@ def main(argv: list[str] | None = None) -> int:
                 clubs.append(club)
 
         print(f"{len(clubs)} club(s) to scan.")
-        client = HikerClient()
+        client = LurkClient()
         failed = False
         for club in clubs:
             try:
                 failed |= scan_club(club, client, count, now)["error"] is not None
-            except HikerAPIError as exc:
+            except LurkAPIError as exc:
                 print(f"  fetch failed for @{club.instagram_handle}: {exc}", file=sys.stderr)
                 failed = True
-                if exc.status_code == 429:
-                    break  # rate limited, the rest would fail the same way
+                if exc.status_code in {401, 402, 429}:
+                    break
+        unknown = sum(call["credits_charged"] is None for call in client.calls)
+        print(
+            f"Lurk reported credits: {client.credits_charged}; "
+            f"responses without credit amounts: {unknown}; remaining: {client.credits_remaining}"
+        )
     return 1 if failed else 0
 
 

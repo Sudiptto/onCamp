@@ -8,7 +8,7 @@
 
 Each run queries every row in the `colleges` table, discovers and classifies that college's seed account following graph, then syncs approved clubs into the database. Newly added supported colleges are included once they have a `College` row with a seed account. The classification cache is stored in the `oncamp-discovery-cache` Blob container, so repeat semester runs don't reclassify unchanged accounts. `AzureWebJobsStorage` is used both by the timer host and this cache.
 
-The first full discovery should be started manually after deploying and testing the Function App; the next scheduled run is the next January 5 or August 5. Configure `DATABASE_URL` to persistent Postgres, `APP_ENV=production`, `SECRET_KEY`, `HIKERAPI_ACCESS_KEY`, and `DEEPSEEK_API_KEY` in Function App settings. The Function App also needs `AzureWebJobsStorage` pointing to its Storage account. Do not rely on the local SQLite fallback or commit `local.settings.json`.
+The first full discovery should be started manually after deploying and testing the Function App; the next scheduled run is the next January 5 or August 5. Configure `DATABASE_URL` to persistent Postgres, `APP_ENV=production`, `SECRET_KEY`, `HIKERAPI_ACCESS_KEY`, `LURK_API_KEY`, and `DEEPSEEK_API_KEY` in Function App settings. The Function App also needs `AzureWebJobsStorage` pointing to its Storage account. Do not rely on the local SQLite fallback or commit `local.settings.json`.
 
 Existing PostgreSQL databases created with the earlier models must widen the profile-image URL columns; `create_all()` does not alter existing tables:
 
@@ -65,7 +65,14 @@ cd backend
 
 ## Post extraction (events)
 
-`run_post_extraction.py` turns active clubs' Instagram posts into upcoming events. Posts are never stored; only events are.
+`run_post_extraction.py` turns active clubs' Instagram posts into upcoming events. Posts are never stored; only events are. The fetch is LurkAPI user posts (1 credit per club, captions included). HikerAPI is still used for the following-graph discovery, not for this scan.
+
+A no-database trial lives in `run_lurk_post_pilot.py`. It writes `backend/data/lurk/` (gitignored) and appends credit/token rows to [docs/lurkapi-post-migration.md](../../docs/lurkapi-post-migration.md). Re-running without `--refresh` uses the local cache and spends 0 Lurk credits. `--analyze` sends only the newest caption to DeepSeek.
+
+```powershell
+cd backend
+.\venv\Scripts\python.exe run_lurk_post_pilot.py --username hunter_bsa --analyze
+```
 
 - Active clubs are scanned every 2 days (`--due`, picked by `club_post_checkpoints.checked_at`).
 - Each club has a checkpoint (newest post id and date processed), so a post is sent to the AI at most once.
@@ -78,6 +85,8 @@ python run_post_extraction.py --due --college hunter --limit 5
 python run_post_extraction.py --username hunter_bsa --count 3
 ```
 
+That command spends 1 Lurk credit per club. The local pilot above is the cheaper way to check one handle first.
+
 ## Manual end-to-end sequence
 
 The semester discovery timer is separate from the manual activity and
@@ -88,7 +97,7 @@ interval; there is no separate daily tier for the most active clubs. The
 dates. Archived clubs are not automatically rechecked or restored.
 
 With the root `.env` configured and dependencies installed, run the following
-from `backend/`. API calls to Hiker and DeepSeek can incur costs:
+from `backend/`. Discovery still calls HikerAPI. Post extraction calls LurkAPI (1 credit per club) and DeepSeek.
 
 ```powershell
 # Once per database, or when college configuration changes.

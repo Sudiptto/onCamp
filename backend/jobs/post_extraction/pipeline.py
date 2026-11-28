@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.services.hiker_client import HikerClient
+from app.services.lurk_client import LurkClient
+from jobs.lurk.posts import fetch_club_medias
 from jobs.post_extraction.posts import DEFAULT_POST_COUNT, extract_recent_posts
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "posts"
@@ -17,14 +18,14 @@ def extract_club_posts(
     client: Any = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    """Fetch a club's recent posts via HikerAPI and write them to <output_dir>/<username>.json.
+    """Fetch a club's recent posts via LurkAPI and write them to <output_dir>/<username>.json.
 
     The file holds both the parsed posts and the raw API response so the data can be inspected.
     """
-    client = client or HikerClient()
+    client = client or LurkClient()
     now = now or datetime.now(timezone.utc)
-    raw = client.get_user_medias(club["user_id"])
-    posts = extract_recent_posts(raw, count)
+    raw, medias = fetch_club_medias(client, club["username"])
+    posts = extract_recent_posts(medias, count)
     result = {
         "user_id": str(club["user_id"]),
         "username": club.get("username", ""),

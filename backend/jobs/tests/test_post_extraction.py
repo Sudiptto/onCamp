@@ -12,8 +12,8 @@ class FakeClient:
         self.response = response
         self.requested = []
 
-    def get_user_medias(self, user_id):
-        self.requested.append(user_id)
+    def get_user_posts(self, username, first):
+        self.requested.append((username, first))
         return self.response
 
 
@@ -43,14 +43,22 @@ def test_empty_or_malformed_responses(response):
 
 
 def test_extract_club_posts_writes_json(tmp_path):
-    client = FakeClient(load_fixture("raw_medias_sample.json"))
+    client = FakeClient({
+        "success": True,
+        "credits_charged": 1,
+        "posts": [
+            {"pk": "1", "code": "OLD", "taken_at": 1000, "caption": "older"},
+            {"pk": "2", "code": "NEW", "taken_at": 2000, "caption": "newer"},
+        ],
+    })
     club = {"user_id": "61370581591", "username": "hunter_bsa"}
     result = extract_club_posts(club, output_dir=tmp_path / "posts", count=3, client=client)
 
-    assert client.requested == ["61370581591"]
+    assert client.requested == [("hunter_bsa", 12)]
     saved = json.loads((tmp_path / "posts" / "hunter_bsa.json").read_text(encoding="utf-8"))
-    assert saved["post_count"] == 3 == result["post_count"]
-    assert saved["raw_response"]["num_results"] == 3
+    assert saved["post_count"] == 2 == result["post_count"]
+    assert saved["posts"][0]["post_code"] == "NEW"
+    assert saved["raw_response"]["credits_charged"] == 1
 
 
 def test_find_club(tmp_path):
