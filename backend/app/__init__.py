@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .api import api_bp
@@ -14,6 +14,9 @@ DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 def create_app(config_overrides: dict | None = None) -> Flask:
     app = Flask(__name__)
     app.config.from_object(get_config())
+    app.config["FRONTEND_DIST_DIR"] = os.path.abspath(
+        os.path.join(app.root_path, "..", "frontend_dist")
+    )
     app.config.update(config_overrides or {})
 
     if os.getenv("TRUST_PROXY") == "1":
@@ -44,6 +47,16 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     cors.init_app(app, resources={r"/api/*": {"origins": origins}}, supports_credentials=True)
 
     app.register_blueprint(api_bp)
+
+    @app.get("/")
+    def frontend_index():
+        return send_from_directory(app.config["FRONTEND_DIST_DIR"], "index.html")
+
+    @app.get("/assets/<path:filename>")
+    def frontend_assets(filename):
+        return send_from_directory(
+            os.path.join(app.config["FRONTEND_DIST_DIR"], "assets"), filename
+        )
 
     @app.errorhandler(429)
     def too_many_requests(_error):

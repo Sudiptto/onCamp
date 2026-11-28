@@ -68,10 +68,12 @@ npm run dev
 Vite runs at `http://localhost:5173`.
 
 The calendar reads events from the backend database through the `/api` proxy.
-To use a separately hosted API, set `VITE_API_ORIGIN` to its HTTPS origin before
-building the frontend, and allow the frontend's exact origin in the backend's
-`CORS_ORIGINS`. Cross-site sessions also require secure `SameSite=None` cookies;
-browsers that block third-party cookies may still prevent sign-in.
+The production container serves the built frontend and API on the same origin,
+so login does not depend on third-party cookies. To use a separately hosted API,
+set `VITE_API_ORIGIN` to its HTTPS origin before building the frontend, and allow
+the frontend's exact origin in the backend's `CORS_ORIGINS`. Cross-site sessions
+also require secure `SameSite=None` cookies; browsers that block third-party
+cookies may still prevent sign-in.
 To populate that database, see the manual discovery, activity-check, and post
 extraction sequence in [Scheduled Jobs](backend/jobs/README.md). Until a
 scheduler is deployed, activity checks and post extraction do not run automatically.
@@ -104,8 +106,42 @@ configuration. If `DATABASE_URL` is unset, development uses local SQLite;
 production fails to start. Production does not create database tables on startup.
 The Docker image includes the psycopg2 driver, so use the
 `postgresql+psycopg2://` URL scheme and require TLS for production PostgreSQL.
-The backend Dockerfile runs Gunicorn as a non-root user and copies only the API
-code and dependencies; provide production configuration and secrets at runtime.
+
+### Same-origin container deployment
+
+Azure Container Apps serves both the built React frontend and Flask API from
+one HTTPS origin. Google provides sign-in; the API verifies the Google credential
+and creates its own session cookie. Because frontend requests use the same origin,
+the session and CSRF protection work without third-party cookies.
+
+Build from the repository root, not `backend/`. The Google client ID is public
+configuration embedded in the frontend build, not a client secret. Supply the
+same Web client ID as the backend's runtime `GOOGLE_CLIENT_ID`:
+
+```powershell
+$env:GOOGLE_CLIENT_ID = "your-google-client-id.apps.googleusercontent.com"
+docker build -f backend/Dockerfile --build-arg VITE_GOOGLE_CLIENT_ID=$env:GOOGLE_CLIENT_ID -t oncamp .
+```
+
+Alternatively, build in Azure Container Registry from the repository root:
+
+```powershell
+$env:AZURE_CONTAINER_REGISTRY = "your-registry-name"
+az acr build --registry $env:AZURE_CONTAINER_REGISTRY --image oncamp:same-origin --file backend/Dockerfile --build-arg VITE_GOOGLE_CLIENT_ID=$env:GOOGLE_CLIENT_ID .
+```
+
+Push or build the image in a registry accessible to the existing Azure Container
+App and update the app to use it. Configure its existing production environment variables,
+including `GOOGLE_CLIENT_ID`, `SECRET_KEY`, and `DATABASE_URL`, at runtime.
+Add the container app's HTTPS origin to the Google OAuth client's authorized
+JavaScript origins. Open the container app URL (not the old Static Web Apps URL)
+and verify Google login, session persistence, and logout, including with
+third-party cookies blocked. The old Static Web Apps deployment continues to use
+its separate API origin until independently redirected or retired.
+
+The Dockerfile builds the frontend with a relative API URL and runs Gunicorn as
+a non-root user. It does not include scheduled job code; deploy and configure
+those jobs separately as described in [Scheduled Jobs](backend/jobs/README.md).
 Set `TRUST_PROXY=1` only behind a trusted proxy that appends the client address,
 such as Azure Container Apps ingress, so per-IP limits use the rightmost address.
 

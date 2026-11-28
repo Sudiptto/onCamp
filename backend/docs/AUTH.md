@@ -5,11 +5,28 @@ and then sets its own session cookie. Logged out visitors can see the next `ANON
 
 ## Google Cloud setup (one time)
 
-1. Google Cloud Console -> APIs & Services -> OAuth consent screen. User type: External. Scopes: openid, email, profile.
-   While the app is in "Testing", only listed test users can sign in. Publish it ("In production") before launch.
-2. Credentials -> Create credentials -> OAuth client ID -> **Web application**.
-3. Authorized JavaScript origins: `http://localhost:5173` and your production URL. No redirect URI is needed.
-4. Put the client ID in the root `.env` as `GOOGLE_CLIENT_ID` and in `frontend/.env` as `VITE_GOOGLE_CLIENT_ID`.
+Use the new Google account to sign in to [Google Cloud Console](https://console.cloud.google.com/),
+then create or select the project that will own onCamp's OAuth client.
+
+1. Configure the app in [Google Auth Platform](https://console.cloud.google.com/auth/overview):
+   - [Branding](https://console.cloud.google.com/auth/branding): set the app name and support email.
+   - [Audience](https://console.cloud.google.com/auth/audience): choose **External**. While the app is in
+     **Testing**, add the Google accounts that should be able to sign in as test users. The new account
+     that owns the project is not automatically the only account allowed to sign in.
+   - [Data Access](https://console.cloud.google.com/auth/data-access): request `openid`, `email`, and `profile`.
+     Publish the app (move it to **In production**) before launch.
+2. Open [Clients](https://console.cloud.google.com/auth/clients), choose **Create client**, and select
+   **Web application**. You can also find OAuth credentials from
+   [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials).
+3. Add `http://localhost:5173` under **Authorized JavaScript origins**, plus the production frontend
+   origin when available. This app uses Google Identity Services; no authorized redirect URI is needed.
+4. Copy the new Web client ID (it ends in `.apps.googleusercontent.com`) into both files, replacing the
+   old value:
+   - Root `.env`: `GOOGLE_CLIENT_ID=<new-client-id>`
+   - `frontend/.env`: `VITE_GOOGLE_CLIENT_ID=<same-new-client-id>`
+
+   The backend verifies tokens against `GOOGLE_CLIENT_ID`, so both variables must contain the same new
+   client ID. Keep the client ID out of source code; it is configuration, not a client secret.
 
 ## Routes
 
