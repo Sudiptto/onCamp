@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 from datetime import datetime
@@ -12,6 +13,7 @@ from jobs.ai.club_filter import REQUEST_TIMEOUT_SECONDS, get_model
 PROMPT_PATH = Path(__file__).parent / "prompt.md"
 DUPLICATE_PROMPT_PATH = Path(__file__).parent / "duplicate_prompt.md"
 CAMPUS_TIMEZONE = "America/New_York"
+logger = logging.getLogger(__name__)
 
 # Google Forms live on either of these hosts; the AI is not asked to find links.
 _FORM_URL = re.compile(
@@ -66,7 +68,7 @@ def parse_extraction(content: str) -> dict[str, Any]:
     }
 
 
-def _ask_deepseek(prompt_path: Path, payload: dict[str, Any]) -> str:
+def _complete(prompt_path: Path, payload: dict[str, Any]) -> tuple[Any, str]:
     api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key:
         raise ExtractionError("Missing DEEPSEEK_API_KEY in the local .env file")
@@ -94,20 +96,51 @@ def _ask_deepseek(prompt_path: Path, payload: dict[str, Any]) -> str:
         )
     except Exception as exc:
         raise ExtractionError(f"DeepSeek request failed: {exc}") from exc
+    usage = _usage(response, model)
+    logger.info(
+        "DeepSeek usage model=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+        model, usage["prompt_tokens"], usage["completion_tokens"], usage["total_tokens"],
+    )
+    return response, model
+
+
+def _usage(response: Any, model: str) -> dict[str, Any]:
+    usage = getattr(response, "usage", None)
+    return {
+        "model": model,
+        "prompt_tokens": getattr(usage, "prompt_tokens", None),
+        "completion_tokens": getattr(usage, "completion_tokens", None),
+        "total_tokens": getattr(usage, "total_tokens", None),
+    }
+
+
+def _ask_deepseek(prompt_path: Path, payload: dict[str, Any]) -> str:
+    response, _model = _complete(prompt_path, payload)
     return response.choices[0].message.content or ""
 
 
-def extract_with_deepseek(
-    caption: str, posted_at: datetime, club_name: str, college_name: str
-) -> dict[str, Any]:
-    payload = {
+def _event_payload(caption: str, posted_at: datetime, club_name: str, college_name: str) -> dict[str, Any]:
+    return {
         "club_name": club_name,
         "college_name": college_name,
         "posted_at": posted_at.isoformat(),
         "timezone": CAMPUS_TIMEZONE,
         "caption": caption,
     }
-    return parse_extraction(_ask_deepseek(PROMPT_PATH, payload))
+
+
+def extract_with_deepseek(
+    caption: str, posted_at: datetime, club_name: str, college_name: str
+) -> dict[str, Any]:
+    return parse_extraction(_ask_deepseek(PROMPT_PATH, _event_payload(caption, posted_at, club_name, college_name)))
+
+
+def extract_with_deepseek_metered(
+    caption: str, posted_at: datetime, club_name: str, college_name: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Same extraction as extract_with_deepseek, plus token counts for the local credit ledger."""
+    response, model = _complete(PROMPT_PATH, _event_payload(caption, posted_at, club_name, college_name))
+    return parse_extraction(response.choices[0].message.content or ""), _usage(response, model)
 
 
 def _describe(event: Any) -> dict[str, Any]:
